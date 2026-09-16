@@ -857,11 +857,7 @@
 
       function drawPlayer() {
         const p = state.player;
-        const armLift = Math.sin(state.time * 10 + p.bob) * 4;
-        const rightArmX = Math.cos(p.angle + 0.9) * 18;
-        const rightArmY = Math.sin(p.angle + 0.9) * 18;
-        const leftArmX = Math.cos(p.angle - 0.9) * 18;
-        const leftArmY = Math.sin(p.angle - 0.9) * 18;
+        const walk = Math.sin(p.bob) * (Math.hypot(p.vx, p.vy) > 5 ? 3 : 0.8);
 
         ctx.save();
         ctx.translate(p.x, p.y);
@@ -869,77 +865,111 @@
 
         ctx.fillStyle = 'rgba(0,0,0,0.22)';
         ctx.beginPath();
-        ctx.ellipse(0, 20, 16, 8, 0, 0, Math.PI * 2);
+        ctx.ellipse(1, 19, 19, 9, 0, 0, Math.PI * 2);
         ctx.fill();
 
+        // Backpack sits behind the shoulders and keeps the silhouette readable.
+        ctx.fillStyle = '#263b50';
+        ctx.beginPath();
+        ctx.roundRect(-15, -1, 10, 21, 5);
+        ctx.fill();
+        ctx.fillStyle = '#48657b';
+        ctx.fillRect(-14, 3, 8, 3);
+
+        // Legs are drawn before the torso so they feel attached underneath it.
+        ctx.strokeStyle = '#26374b';
+        ctx.lineWidth = 7;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-7, 10);
+        ctx.lineTo(-9 - walk, 24);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(7, 10);
+        ctx.lineTo(9 + walk, 24);
+        ctx.stroke();
+        ctx.fillStyle = '#182431';
+        ctx.fillRect(-14 - walk, 23, 8, 5);
+        ctx.fillRect(6 + walk, 23, 8, 5);
+
+        // Arms remain in local player space; the player rotation above handles aim.
+        ctx.strokeStyle = '#315d99';
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(-10, 1);
+        ctx.lineTo(13, 9 + walk * 0.5);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(10, 1);
+        ctx.lineTo(22, -8 - walk * 0.5);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#f3c79e';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(13, 9 + walk * 0.5);
+        ctx.lineTo(20, 11 + walk * 0.5);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(22, -8 - walk * 0.5);
+        ctx.lineTo(28, -11 - walk * 0.5);
+        ctx.stroke();
+
+        // Torso with a collar, belt and front highlight.
         ctx.fillStyle = '#4c7ed7';
         ctx.beginPath();
-        ctx.ellipse(0, 2, 16, 12, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 2, 17, 14, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillStyle = '#78a7f0';
+        ctx.beginPath();
+        ctx.ellipse(7, -2, 5, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#1f416e';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-13, 7);
+        ctx.lineTo(13, 7);
+        ctx.stroke();
 
+        // Head, hair and face point toward the current aim direction.
         ctx.fillStyle = '#f3c79e';
         ctx.beginPath();
-        ctx.arc(0, -16, 9, 0, Math.PI * 2);
+        ctx.arc(8, -15, 10, 0, Math.PI * 2);
         ctx.fill();
 
+        ctx.fillStyle = '#553321';
+        ctx.beginPath();
+        ctx.arc(8, -19, 10, Math.PI, Math.PI * 2);
+        ctx.fill();
         ctx.fillStyle = '#c92a39';
         ctx.beginPath();
-        ctx.moveTo(-9, -16);
-        ctx.lineTo(9, -16);
-        ctx.lineTo(0, -8);
+        ctx.moveTo(0, -21);
+        ctx.lineTo(18, -21);
+        ctx.lineTo(13, -14);
         ctx.closePath();
         ctx.fill();
 
-        ctx.strokeStyle = '#f3c79e';
-        ctx.lineWidth = 6;
-        ctx.lineCap = 'round';
+        ctx.fillStyle = '#162434';
         ctx.beginPath();
-        ctx.moveTo(-5, 6);
-        ctx.lineTo(leftArmX, leftArmY + armLift);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.moveTo(5, 6);
-        ctx.lineTo(rightArmX, rightArmY - armLift);
-        ctx.stroke();
-
-        ctx.fillStyle = '#f3c79e';
-        ctx.beginPath();
-        ctx.arc(leftArmX, leftArmY + armLift, 4, 0, Math.PI * 2);
+        ctx.arc(13, -15, 1.7, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(rightArmX, rightArmY - armLift, 4, 0, Math.PI * 2);
+        ctx.arc(18, -15, 1.7, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = '#24374d';
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(-6, 14);
-        ctx.lineTo(-8, 24);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(6, 14);
-        ctx.lineTo(8, 24);
-        ctx.stroke();
-
-        ctx.fillStyle = '#1b2a39';
-        ctx.fillRect(-9, 24, 7, 4);
-        ctx.fillRect(2, 24, 7, 4);
-
-        const hookX = Math.cos(p.angle + Math.PI / 2) * 18;
-        const hookY = Math.sin(p.angle + Math.PI / 2) * 18;
+        // The hook is held by the forward hand, instead of floating beside the body.
         ctx.save();
-        ctx.translate(hookX, hookY);
-        ctx.rotate(p.angle + Math.PI / 2);
+        ctx.translate(30, -13 - walk * 0.5);
+        ctx.rotate(Math.PI / 2);
         ctx.fillStyle = '#d5b586';
-        ctx.fillRect(-3, -12, 6, 20);
+        ctx.fillRect(-2, -9, 4, 16);
         ctx.beginPath();
-        ctx.arc(0, -18, 7, 0, Math.PI * 2);
+        ctx.arc(0, -13, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.moveTo(-8, 5);
-        ctx.lineTo(8, 5);
-        ctx.lineTo(0, 13);
+        ctx.moveTo(-7, 6);
+        ctx.lineTo(7, 6);
+        ctx.lineTo(0, 12);
         ctx.closePath();
         ctx.fill();
         ctx.restore();
