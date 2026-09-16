@@ -552,6 +552,11 @@
                 ctx.fillStyle = bgGrad; ctx.fillRect(0,0,width,height);
                 
                 ctx.save();
+                // Kamerayı ekran merkezinden ölçeklemek HUD'u sabit bırakır.
+                const cameraZoom = 0.78;
+                ctx.translate(width / 2, height / 2);
+                ctx.scale(cameraZoom, cameraZoom);
+                ctx.translate(-width / 2, -height / 2);
                 ctx.translate(STATE.cam.x + sx, STATE.cam.y + sy);
                 
                 // Salın Nefes Alma (Dalga) efekti
