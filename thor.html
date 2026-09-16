@@ -475,6 +475,14 @@
                             spawnParticles(d.x, d.y, '#fff', 5); break;
                         }
                     }
+                    // Kanca köpekbalığına isabet ederse saldırıyı bırakıp kaçar.
+                    if(hook.state === 'thrown' && Math.hypot(hook.x-shark.x, hook.y-shark.y)<55) {
+                        hook.state = 'returning'; hook.target = null;
+                        shark.state = 'fleeing'; shark.target = null;
+                        screenShake(8);
+                        showMsg("Köpekbalığı kaçtı!", "#00ff88");
+                        spawnParticles(shark.x, shark.y, '#ff5555', 12);
+                    }
                 } else if(hook.state === 'returning') {
                     const dx = player.x - hook.x, dy = player.y - hook.y, dist = Math.hypot(dx, dy);
                     if(dist < 20) {
