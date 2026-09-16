@@ -683,96 +683,91 @@
                     ctx.restore();
                 }
 
-                // --- OYUNCU (TOP-DOWN Taming.io TARZI) ---
+                // --- OYUNCU (STARVE.io / TAMING.io TARZI) ---
                 ctx.save();
                 ctx.translate(player.x, player.y);
                 ctx.rotate(player.angle);
 
-                const walkPulse = Math.sin(STATE.time * 9 + player.x * 0.04) * (Math.hypot(INPUT.moveX, INPUT.moveY) > 0 ? 3 : 0.6);
-                const armReach = hook.state === 'idle' && STATE.mode === 'hook' ? 22 : 18;
-                const armSwing = Math.sin(STATE.time * 12 + player.x * 0.05) * (Math.hypot(INPUT.moveX, INPUT.moveY) > 0 ? 12 : 4);
+                const moveStrength = Math.hypot(INPUT.moveX, INPUT.moveY);
+                const walkPulse = Math.sin(STATE.time * 10 + player.x * 0.05) * (moveStrength > 0 ? 5 : 1.2);
+                const aimDir = Math.atan2(INPUT.aimY || 0, INPUT.aimX || 1);
+                const armReach = hook.state === 'idle' && STATE.mode === 'hook' ? 18 : 12;
+                const armSwing = Math.sin(STATE.time * 12 + player.x * 0.05) * (moveStrength > 0 ? 10 : 3);
 
                 // Gölge
-                ctx.fillStyle = 'rgba(0,0,0,0.34)';
-                ctx.beginPath(); ctx.ellipse(0, 16, 26, 14, 0, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = 'rgba(0,0,0,0.28)';
+                ctx.beginPath(); ctx.ellipse(0, 16, 18, 12, 0, 0, Math.PI*2); ctx.fill();
 
-                // Vücut
-                const bodyGrad = ctx.createRadialGradient(-8, -8, 4, 0, 0, 34);
-                bodyGrad.addColorStop(0, '#5d8fe0');
-                bodyGrad.addColorStop(0.55, '#335e9b');
-                bodyGrad.addColorStop(1, '#1a2f4d');
-                ctx.fillStyle = bodyGrad;
-                ctx.beginPath(); ctx.ellipse(0, 0, 22, 18, 0, 0, Math.PI*2); ctx.fill();
+                // Gövde
+                const torsoGrad = ctx.createRadialGradient(-6, -6, 4, 0, 0, 24);
+                torsoGrad.addColorStop(0, '#5f90de');
+                torsoGrad.addColorStop(0.6, '#2b5ca0');
+                torsoGrad.addColorStop(1, '#1a2c46');
+                ctx.fillStyle = torsoGrad;
+                ctx.beginPath(); ctx.ellipse(0, 2, 16, 14, 0, 0, Math.PI*2); ctx.fill();
 
-                // Göğüs çizgileri
-                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                // Kemer / detay
+                ctx.strokeStyle = 'rgba(255,255,255,0.18)';
                 ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 8); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(-10, 1); ctx.lineTo(10, 1); ctx.stroke();
 
                 // Kafa
-                const skinGrad = ctx.createRadialGradient(-2, -16, 2, 0, -16, 20);
+                const skinGrad = ctx.createRadialGradient(-4, -16, 2, 0, -16, 16);
                 skinGrad.addColorStop(0, '#ffd9b8');
-                skinGrad.addColorStop(1, '#ca8d66');
+                skinGrad.addColorStop(1, '#c98c66');
                 ctx.fillStyle = skinGrad;
-                ctx.beginPath(); ctx.arc(0, -18, 13, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(0, -17, 10, 0, Math.PI*2); ctx.fill();
 
-                // Bandana / başlık
-                ctx.fillStyle = '#a4232c';
-                ctx.beginPath(); ctx.arc(0, -18, 13, Math.PI, 0); ctx.fill();
-                ctx.fillStyle = '#4b0d18';
-                ctx.fillRect(-14, -22, 6, 7);
-                ctx.fillRect(8, -22, 6, 7);
+                // Bandana
+                ctx.fillStyle = '#a21d2d';
+                ctx.beginPath(); ctx.arc(0, -17, 10, Math.PI, 0); ctx.fill();
 
                 // Gözler
-                ctx.fillStyle = '#111';
-                ctx.beginPath(); ctx.arc(-4, -20, 1.8, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(4, -20, 1.8, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#131313';
+                ctx.beginPath(); ctx.arc(-3, -18, 1.6, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(3, -18, 1.6, 0, Math.PI*2); ctx.fill();
 
-                // Kollar
-                const leftArmAngle = -Math.PI/2 + 0.75 + armSwing * 0.025;
-                const rightArmAngle = Math.PI/2 - 0.75 - armSwing * 0.025;
-                const leftArmX = Math.cos(leftArmAngle) * (18 + armReach);
-                const leftArmY = Math.sin(leftArmAngle) * (18 + armReach);
-                const rightArmX = Math.cos(rightArmAngle) * (18 + armReach);
-                const rightArmY = Math.sin(rightArmAngle) * (18 + armReach);
+                // Kollar (görünür, kısa ama net)
+                const leftArmX = Math.cos(-Math.PI/2 + 0.9 + armSwing * 0.02) * (12 + armReach);
+                const leftArmY = Math.sin(-Math.PI/2 + 0.9 + armSwing * 0.02) * (12 + armReach);
+                const rightArmX = Math.cos(Math.PI/2 - 0.9 - armSwing * 0.02) * (12 + armReach);
+                const rightArmY = Math.sin(Math.PI/2 - 0.9 - armSwing * 0.02) * (12 + armReach);
 
-                ctx.strokeStyle = '#d8a578';
-                ctx.lineWidth = 8;
+                ctx.strokeStyle = '#d8a67d';
+                ctx.lineWidth = 6;
                 ctx.lineCap = 'round';
-                ctx.beginPath(); ctx.moveTo(-8, 3); ctx.lineTo(leftArmX, leftArmY); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(8, 3); ctx.lineTo(rightArmX, rightArmY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(-6, 2); ctx.lineTo(leftArmX, leftArmY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(6, 2); ctx.lineTo(rightArmX, rightArmY); ctx.stroke();
 
                 ctx.fillStyle = skinGrad;
-                ctx.beginPath(); ctx.arc(leftArmX, leftArmY, 5.5, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(rightArmX, rightArmY, 5.5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(leftArmX, leftArmY, 4, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(rightArmX, rightArmY, 4, 0, Math.PI*2); ctx.fill();
 
                 // Kanca
                 if (hook.state === 'idle' && STATE.mode === 'hook') {
-                    const hookAngle = Math.atan2(INPUT.aimY || 0, INPUT.aimX || 1);
-                    const hookX = Math.cos(hookAngle) * (22 + armReach);
-                    const hookY = Math.sin(hookAngle) * (22 + armReach);
+                    const hookX = Math.cos(aimDir) * (18 + armReach);
+                    const hookY = Math.sin(aimDir) * (18 + armReach);
                     ctx.save();
                     ctx.translate(hookX, hookY);
-                    ctx.rotate(hookAngle + Math.PI/2);
-                    ctx.drawImage(TEX.hook_obj, -15, -15);
+                    ctx.rotate(aimDir + Math.PI/2);
+                    ctx.drawImage(TEX.hook_obj, -12, -12);
                     ctx.restore();
                 }
 
                 // Bacaklar
-                const leg1X = -8 + Math.cos(-Math.PI/2 + walkPulse * 0.12) * 12;
-                const leg1Y = 18 + Math.sin(-Math.PI/2 + walkPulse * 0.12) * 12;
-                const leg2X = 8 + Math.cos(Math.PI/2 - walkPulse * 0.12) * 12;
-                const leg2Y = 18 + Math.sin(Math.PI/2 - walkPulse * 0.12) * 12;
+                const leg1X = -5 + Math.cos(-Math.PI/2 + walkPulse * 0.12) * 10;
+                const leg1Y = 16 + Math.sin(-Math.PI/2 + walkPulse * 0.12) * 10;
+                const leg2X = 5 + Math.cos(Math.PI/2 - walkPulse * 0.12) * 10;
+                const leg2Y = 16 + Math.sin(Math.PI/2 - walkPulse * 0.12) * 10;
 
-                ctx.strokeStyle = '#1a2d42';
-                ctx.lineWidth = 7;
-                ctx.beginPath(); ctx.moveTo(-7, 12); ctx.lineTo(leg1X, leg1Y); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(7, 12); ctx.lineTo(leg2X, leg2Y); ctx.stroke();
+                ctx.strokeStyle = '#1a2e43';
+                ctx.lineWidth = 6;
+                ctx.beginPath(); ctx.moveTo(-4, 12); ctx.lineTo(leg1X, leg1Y); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(4, 12); ctx.lineTo(leg2X, leg2Y); ctx.stroke();
 
                 ctx.fillStyle = '#0d141b';
-                ctx.fillRect(leg1X - 5, leg1Y + 4, 9, 5);
-                ctx.fillRect(leg2X - 4, leg2Y + 4, 9, 5);
+                ctx.fillRect(leg1X - 4, leg1Y + 3, 7, 4);
+                ctx.fillRect(leg2X - 3, leg2Y + 3, 7, 4);
 
                 ctx.restore();
 
