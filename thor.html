@@ -192,6 +192,38 @@
             #action-btn { left: auto; right: 218px; transform: none; }
             #action-btn:active { transform: scale(0.9); }
         }
+
+        /* Acilir premium arac menusu */
+        #tool-dock { position: absolute; right: 22px; bottom: 22px; z-index: 16; pointer-events: auto; }
+        #tool-toggle { width: 58px; height: 58px; border: 1px solid rgba(190,230,255,0.32); border-radius: 17px; background: linear-gradient(145deg, #203a55, #0d1b2d); color: #edf8ff; font-size: 25px; cursor: pointer; box-shadow: 0 14px 32px rgba(0,0,0,0.42), inset 0 1px rgba(255,255,255,0.16); transition: transform .16s, border-color .16s; }
+        #tool-toggle:hover, #tool-dock.open #tool-toggle { transform: translateY(-3px); border-color: #7ae7a2; }
+        #tool-toggle-label { display: block; margin-top: 2px; font-size: 8px; font-weight: 900; letter-spacing: 1px; color: #9db7ca; }
+        #tool-panel { position: absolute; right: 0; bottom: 70px; width: 310px; padding: 13px; display: none; background: rgba(6,15,27,0.94); border: 1px solid rgba(190,230,255,0.2); border-radius: 19px; box-shadow: 0 22px 55px rgba(0,0,0,0.48), inset 0 1px rgba(255,255,255,0.08); backdrop-filter: blur(18px); }
+        #tool-dock.open #tool-panel { display: block; animation: panelIn .16s ease-out; }
+        @keyframes panelIn { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        #tool-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 11px; }
+        #tool-head strong { color: #f3fbff; font-size: 14px; }
+        #tool-head span { color: #8faac2; font-size: 10px; }
+        #tool-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; margin-bottom: 10px; border-radius: 11px; background: rgba(255,255,255,0.05); }
+        .tool-tab { border: 0; border-radius: 8px; padding: 8px; background: transparent; color: #8faac2; font-weight: 900; font-size: 11px; cursor: pointer; }
+        .tool-tab.active { color: #10251b; background: #7ae7a2; }
+        .tool-section { display: none; }
+        .tool-section.active { display: block; }
+        #tool-panel #hook-models, #tool-panel #build-menu { position: static; width: auto; padding: 0; display: grid; transform: none; background: transparent; border: 0; box-shadow: none; backdrop-filter: none; }
+        #tool-panel #hook-models-title { padding: 0 2px 5px; }
+        #tool-panel .hook-choice { margin-top: 6px; min-height: 42px; }
+        #tool-panel #build-menu { grid-template-columns: repeat(3, 1fr); gap: 7px; }
+        #tool-panel #build-menu::before { display: none; }
+        #tool-panel .craft-btn { min-height: 72px; }
+        @media (max-width: 720px) {
+            #tool-dock { right: 10px; bottom: 12px; }
+            #tool-panel { width: min(292px, calc(100vw - 20px)); }
+        }
+        @media (max-width: 430px) {
+            #tool-dock { right: 10px; bottom: 12px; }
+            #tool-panel { right: 0; bottom: 68px; }
+            #action-btn { right: 218px; }
+        }
     </style>
 </head>
 <body>
@@ -219,24 +251,37 @@
 
         <button id="skin-btn" onclick="cycleSkin()">🎨 Karakter</button>
 
-        <div id="hook-models">
-            <div id="hook-models-title">Kanca modelleri</div>
-            <button class="hook-choice active" data-hook="0"><span>🪝</span><span>Çelik pençe</span></button>
-            <button class="hook-choice" data-hook="1"><span>⚓</span><span>Çapa kanca</span></button>
-            <button class="hook-choice" data-hook="2"><span>✦</span><span>Kristal uç</span></button>
-        </div>
-
         <div id="center-msg">MESAJ</div>
 
-        <div id="build-menu">
-            <div class="craft-btn active" onclick="setMode('hook', this)"><span class="build-icon hook"></span><span class="cost">Kanca</span></div>
-            <div class="craft-btn" onclick="setMode('platform', this)"><span class="build-icon platform"></span><span class="cost">2🪵 1🔩</span></div>
-            <div class="craft-btn" onclick="setMode('purifier', this)"><span class="build-icon purifier"></span><span class="cost">4🔩</span></div>
-            <div class="craft-btn" onclick="setMode('grill', this)"><span class="build-icon grill"></span><span class="cost">4🪵 1🔩</span></div>
-            <div class="craft-btn" onclick="setMode('spike', this)"><span class="build-icon spike"></span><span class="cost">3🪵 3🔩</span></div>
-        </div>
-
         <div id="action-btn" onclick="executeAction()"><span id="action-icon">🪝</span><span id="action-label">KANCA</span></div>
+
+        <div id="tool-dock">
+            <div id="tool-panel">
+                <div id="tool-head"><strong>Oyuncu araçları</strong><span>seç ve kullan</span></div>
+                <div id="tool-tabs">
+                    <button class="tool-tab active" data-tab="hooks" onclick="showToolTab('hooks')">KANCALAR</button>
+                    <button class="tool-tab" data-tab="builds" onclick="showToolTab('builds')">İNŞA</button>
+                </div>
+                <div id="hooks-section" class="tool-section active">
+                    <div id="hook-models">
+                        <div id="hook-models-title">Kanca modeli seç</div>
+                        <button class="hook-choice active" data-hook="0"><span>🪝</span><span>Çelik pençe</span></button>
+                        <button class="hook-choice" data-hook="1"><span>⚓</span><span>Çapa kanca</span></button>
+                        <button class="hook-choice" data-hook="2"><span>✦</span><span>Kristal uç</span></button>
+                    </div>
+                </div>
+                <div id="builds-section" class="tool-section">
+                    <div id="build-menu">
+                        <div class="craft-btn active" onclick="setMode('hook', this)"><span class="build-icon hook"></span><span class="cost">Kanca</span></div>
+                        <div class="craft-btn" onclick="setMode('platform', this)"><span class="build-icon platform"></span><span class="cost">2🪵 1🔩</span></div>
+                        <div class="craft-btn" onclick="setMode('purifier', this)"><span class="build-icon purifier"></span><span class="cost">4🔩</span></div>
+                        <div class="craft-btn" onclick="setMode('grill', this)"><span class="build-icon grill"></span><span class="cost">4🪵 1🔩</span></div>
+                        <div class="craft-btn" onclick="setMode('spike', this)"><span class="build-icon spike"></span><span class="cost">3🪵 3🔩</span></div>
+                    </div>
+                </div>
+            </div>
+            <button id="tool-toggle" onclick="toggleToolDock()"><span>◈</span><span id="tool-toggle-label">ARAÇLAR</span></button>
+        </div>
 
         <div id="touch-left" class="touch-zone"><div id="joy-base-l" class="joy-base"><div id="joy-knob-l" class="joy-knob"></div></div></div>
         <div id="touch-right" class="touch-zone"><div id="joy-base-r" class="joy-base"><div id="joy-knob-r" class="joy-knob"></div></div></div>
@@ -278,7 +323,6 @@
                 wood: 15, metal: 10, // Başlangıç eşyaları
                 mode: 'hook', time: 0, tileSize: 100,
                 score: 0, collected: 0, sharkEscapes: 0, buildPulse: 0,
-                storm: 0,
                 cam: { x: 0, y: 0, shake: 0 }
             };
 
@@ -489,7 +533,7 @@
                 STATE.hp = 100; STATE.food = 80; STATE.water = 80;
                 STATE.wood = 15; STATE.metal = 10; STATE.score = 0;
                 STATE.collected = 0; STATE.sharkEscapes = 0; STATE.time = 0;
-                STATE.storm = 0; STATE.buildPulse = 0; STATE.mode = 'hook';
+                STATE.buildPulse = 0; STATE.mode = 'hook';
                 raftGrid.clear();
                 for(let x=-1; x<=1; x++) for(let y=-1; y<=1; y++) addTile(x, y, 'platform');
                 debrisPool.forEach(d => d.active = false);
@@ -514,6 +558,13 @@
                     showMsg(`Kanca: ${choice.innerText.trim()}`, '#ffd166');
                 });
             });
+            window.toggleToolDock = () => {
+                document.getElementById('tool-dock').classList.toggle('open');
+            };
+            window.showToolTab = (tab) => {
+                document.querySelectorAll('.tool-tab').forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
+                document.querySelectorAll('.tool-section').forEach(section => section.classList.toggle('active', section.id === `${tab}-section`));
+            };
             const screenShake = (force) => STATE.cam.shake = force;
 
             window.setMode = (m, el) => {
@@ -603,11 +654,6 @@
                 const dt = Math.min((now - lastTime) / 1000, 0.1); // max delta 0.1s
                 lastTime = now;
                 STATE.time += dt;
-                if (STATE.time > 20 && STATE.storm <= 0 && Math.random() < 0.0015) {
-                    STATE.storm = 8;
-                    showMsg("Fırtına başladı!", "#3d6f9e");
-                }
-                STATE.storm = Math.max(0, STATE.storm - dt);
                 STATE.buildPulse = Math.max(0, STATE.buildPulse - dt * 2.5);
 
                 // 1. Hayatta Kalma (Survival)
@@ -741,18 +787,17 @@
 
             function render(sx, sy) {
                 // --- OKYANUS YÜZEYİ (Açık su, dalga ritmi ve ışık kırılması) ---
-                const stormShade = STATE.storm > 0 ? 0.28 : 0;
                 const seaGrad = ctx.createLinearGradient(0, 0, 0, height);
-                seaGrad.addColorStop(0, `rgb(${Math.round(34 - stormShade * 20)}, ${Math.round(154 - stormShade * 65)}, ${Math.round(190 - stormShade * 50)})`);
-                seaGrad.addColorStop(0.42, `rgb(${Math.round(13 - stormShade * 9)}, ${Math.round(111 - stormShade * 42)}, ${Math.round(151 - stormShade * 38)})`);
-                seaGrad.addColorStop(1, `rgb(${Math.round(5 - stormShade * 3)}, ${Math.round(48 - stormShade * 20)}, ${Math.round(78 - stormShade * 19)})`);
+                seaGrad.addColorStop(0, 'rgb(34, 154, 190)');
+                seaGrad.addColorStop(0.42, 'rgb(13, 111, 151)');
+                seaGrad.addColorStop(1, 'rgb(5, 48, 78)');
                 ctx.fillStyle = seaGrad; ctx.fillRect(0, 0, width, height);
 
                 const sunX = width * 0.2 + Math.sin(STATE.time * 0.08) * width * 0.06;
                 const sunY = height * 0.22;
                 const light = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, width * 0.7);
-                light.addColorStop(0, `rgba(214, 255, 247, ${0.18 - stormShade * 0.2})`);
-                light.addColorStop(0.35, `rgba(111, 225, 221, ${0.08 - stormShade * 0.06})`);
+                light.addColorStop(0, 'rgba(214, 255, 247, 0.18)');
+                light.addColorStop(0.35, 'rgba(111, 225, 221, 0.08)');
                 light.addColorStop(1, 'rgba(0, 0, 0, 0)');
                 ctx.fillStyle = light; ctx.fillRect(0, 0, width, height);
 
@@ -761,7 +806,7 @@
                 ctx.globalCompositeOperation = 'screen';
                 for(let band = -2; band < 19; band++) {
                     const baseY = band * 58 + ((STATE.time * (10 + band % 3 * 4)) % 58) - 58;
-                    ctx.strokeStyle = `rgba(173, 244, 239, ${0.08 + (band % 4) * 0.018 - stormShade * 0.09})`;
+                    ctx.strokeStyle = `rgba(173, 244, 239, ${0.08 + (band % 4) * 0.018})`;
                     ctx.lineWidth = band % 3 === 0 ? 2 : 1;
                     ctx.beginPath();
                     ctx.moveTo(-80, baseY);
@@ -775,7 +820,7 @@
                 for(let foam = 0; foam < 28; foam++) {
                     const fx = (foam * 137 + STATE.time * (18 + foam % 4 * 7)) % (width + 100) - 50;
                     const fy = (foam * 79 + Math.sin(STATE.time * 0.7 + foam) * 25) % (height + 60) - 30;
-                    ctx.strokeStyle = `rgba(214, 255, 250, ${0.12 - stormShade * 0.08})`;
+                    ctx.strokeStyle = 'rgba(214, 255, 250, 0.12)';
                     ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + 14, fy + 2); ctx.stroke();
                 }
@@ -998,16 +1043,6 @@
                     vignette.addColorStop(1, `rgba(0,3,10,${nightAlpha})`); // Kenarlar zifiri karanlık
                     ctx.fillStyle = vignette;
                     ctx.fillRect(0,0,width,height);
-                }
-                if(STATE.storm > 0) {
-                    const stormAlpha = Math.min(0.3, STATE.storm < 2 ? STATE.storm * 0.15 : 0.3);
-                    ctx.fillStyle = `rgba(30, 62, 95, ${stormAlpha})`;
-                    ctx.fillRect(0, 0, width, height);
-                    ctx.strokeStyle = `rgba(180, 225, 255, ${0.18 + Math.sin(STATE.time * 18) * 0.05})`;
-                    ctx.lineWidth = 1;
-                    for(let i = -height; i < width + height; i += 28) {
-                        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i - 90, height); ctx.stroke();
-                    }
                 }
             }
 
