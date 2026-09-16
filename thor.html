@@ -747,7 +747,8 @@
                     if(hook.state === 'idle') {
                         hook.state = 'thrown'; hook.x = player.x; hook.y = player.y; hook.target = null;
                         const len = Math.hypot(INPUT.aimX, INPUT.aimY) || 1;
-                        hook.vx = (INPUT.aimX/len) * 600; hook.vy = (INPUT.aimY/len) * 600;
+                        const hookSpeed = 600 + Math.min(120, profile.level * 12);
+                        hook.vx = (INPUT.aimX/len) * hookSpeed; hook.vy = (INPUT.aimY/len) * hookSpeed;
                     }
                 } else { // Build
                     const hDist = 180, aLen = Math.hypot(INPUT.aimX, INPUT.aimY) || 1;
@@ -862,7 +863,8 @@
                 if(hook.state === 'thrown') {
                     hook.x += hook.vx * dt; hook.y += hook.vy * dt;
                     hook.tension = Math.min(1, Math.hypot(hook.x-player.x, hook.y-player.y) / 400);
-                    if(Math.hypot(hook.x - player.x, hook.y - player.y) > 400) hook.state = 'returning';
+                    const hookRange = 400 + Math.min(180, profile.level * 18);
+                    if(Math.hypot(hook.x - player.x, hook.y - player.y) > hookRange) hook.state = 'returning';
                     // Çarpışma
                     for(let d of debrisPool) {
                         if(d.active && !d.caught && Math.hypot(hook.x-d.x, hook.y-d.y)<35) {
@@ -903,7 +905,8 @@
                             hook.target.active = false; showMsg("+Eşya", "#00ff88");
                         }
                     } else {
-                        hook.x += (dx/dist) * 400 * dt; hook.y += (dy/dist) * 400 * dt;
+                        const returnSpeed = 400 + Math.min(160, profile.level * 16);
+                        hook.x += (dx/dist) * returnSpeed * dt; hook.y += (dy/dist) * returnSpeed * dt;
                         hook.tension = Math.min(1, dist / 400);
                         if(hook.target) { hook.target.x = hook.x; hook.target.y = hook.y; }
                     }
