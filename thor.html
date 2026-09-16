@@ -375,7 +375,7 @@
             // Oyuncu, Kanca ve Köpekbalığı
             const player = { x: 0, y: 0, speed: 200, angle: 0, skin: 0 };
             const hook = { active: false, state: 'idle', x: 0, y: 0, vx: 0, vy: 0, target: null, tension: 0, model: 0 };
-            const shark = { x: 400, y: 400, angle: 0, orbit: 0, state: 'circling', target: null, fleeTimer: 0, hitFlash: 0 };
+            const shark = { x: 400, y: 400, angle: 0, orbit: 0, state: 'circling', target: null, fleeTimer: 0, attackCooldown: 4, hitFlash: 0 };
             
             const raftGrid = new Map();
             const debrisPool = [];
@@ -579,7 +579,7 @@
                 for(let x=-1; x<=1; x++) for(let y=-1; y<=1; y++) addTile(x, y, 'platform');
                 debrisPool.forEach(d => d.active = false);
                 for(let i=0; i<10; i++) spawnDebris();
-                shark.x = 400; shark.y = 400; shark.angle = 0; shark.orbit = 0; shark.state = 'circling'; shark.target = null; shark.fleeTimer = 0; shark.hitFlash = 0;
+                shark.x = 400; shark.y = 400; shark.angle = 0; shark.orbit = 0; shark.state = 'circling'; shark.target = null; shark.fleeTimer = 0; shark.attackCooldown = 4; shark.hitFlash = 0;
                 hook.state = 'idle'; hook.target = null; hook.tension = 0;
                 player.x = 0; player.y = 0; runEnded = false;
                 gameOverEl.style.display = 'none';
@@ -737,6 +737,7 @@
                 lastTime = now;
                 STATE.time += dt;
                 STATE.buildPulse = Math.max(0, STATE.buildPulse - dt * 2.5);
+                shark.attackCooldown = Math.max(0, shark.attackCooldown - dt);
 
                 // 1. Hayatta Kalma (Survival)
                 STATE.food -= 0.5 * dt; STATE.water -= 0.8 * dt;
@@ -788,7 +789,7 @@
                     // Kanca köpekbalığına isabet ederse saldırıyı bırakıp kaçar.
                     if(hook.state === 'thrown' && Math.hypot(hook.x-shark.x, hook.y-shark.y)<55) {
                         hook.state = 'returning'; hook.target = null;
-                        shark.state = 'fleeing'; shark.target = null; shark.fleeTimer = 4; shark.hitFlash = 1;
+                        shark.state = 'fleeing'; shark.target = null; shark.fleeTimer = 4; shark.attackCooldown = 8; shark.hitFlash = 1;
                         STATE.sharkEscapes += 1; STATE.score += 50;
                         screenShake(8);
                         showMsg("Köpekbalığı kaçtı!", "#00ff88");
@@ -828,7 +829,7 @@
                     shark.x = player.x + Math.cos(shark.orbit)*r; shark.y = player.y + Math.sin(shark.orbit)*r;
                     // Yörünge açısı değil, gerçek yüzme yönü kullanılır; uzakta kendi etrafında dönmez.
                     shark.angle = Math.atan2(Math.cos(shark.orbit), -Math.sin(shark.orbit));
-                    if(Math.random() < 0.005 && raftGrid.size > 0) {
+                    if(shark.attackCooldown <= 0 && Math.random() < 0.0018 && raftGrid.size > 0) {
                         const outerTiles = getOuterTiles();
                         if (outerTiles.length) {
                             shark.target = outerTiles[Math.floor(Math.random() * outerTiles.length)];
@@ -840,21 +841,22 @@
                             shark.y = shark.target.y + (targetDy / targetDistance) * 300;
                             shark.angle = Math.atan2(shark.target.y - shark.y, shark.target.x - shark.x);
                             shark.state = 'attacking';
+                            shark.attackCooldown = 6;
                         }
                     }
                 } else if(shark.state === 'attacking') {
                     if(!shark.target || !raftGrid.has(`${shark.target.gx},${shark.target.gy}`)) {
-                        shark.state = 'fleeing'; shark.target = null; shark.fleeTimer = 2;
+                        shark.state = 'fleeing'; shark.target = null; shark.fleeTimer = 2; shark.attackCooldown = 5;
                     } else {
                         const dx = shark.target.x - shark.x;
                         const dy = shark.target.y - shark.y;
                         const dist = Math.hypot(dx, dy);
                         if(dist < 50) {
                             shark.target.hp -= 30 * dt;
-                            if(shark.target.type === 'spike') { shark.state = 'fleeing'; screenShake(10); showMsg("Köpekbalığı Yaralandı!", "#00ff88"); spawnParticles(shark.x, shark.y, '#f00', 10); }
+                            if(shark.target.type === 'spike') { shark.state = 'fleeing'; shark.fleeTimer = 3; shark.attackCooldown = 7; screenShake(10); showMsg("Köpekbalığı Yaralandı!", "#00ff88"); spawnParticles(shark.x, shark.y, '#f00', 10); }
                             else if(shark.target.hp <= 0) {
                                 raftGrid.delete(`${shark.target.gx},${shark.target.gy}`);
-                                shark.state = 'fleeing'; screenShake(15); showMsg("Zemin Parçalandı!", "#ff2a2a"); spawnParticles(shark.x, shark.y, '#6b4423', 20);
+                                shark.state = 'fleeing'; shark.fleeTimer = 3; shark.attackCooldown = 7; screenShake(15); showMsg("Zemin Parçalandı!", "#ff2a2a"); spawnParticles(shark.x, shark.y, '#6b4423', 20);
                                 recoverPlayerPosition();
                             }
                         } else {
