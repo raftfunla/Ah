@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>RaftBase.io - Vanilla JS Ultimate</title>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap');
+
+        * { 
+            box-sizing: border-box; user-select: none; -webkit-user-select: none; 
+            font-family: 'Nunito', sans-serif; outline: none; touch-action: none;
+        }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #020813; overflow: hidden;
+        }
+
+        /* Oyun Motoru Tuvali */
+        #game-canvas {
+            display: block; width: 100%; height: 100%; position: absolute; z-index: 1;
+        }
+
+        /* Modern Cam Efektli (Glassmorphism) Arayüz */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        /* Üst Göstergeler (Can, Açlık, Susuzluk ve Envanter) */
+        #top-hud { display: flex; justify-content: space-between; padding: 15px 20px; pointer-events: auto; }
+        
+        .status-bars { display: flex; flex-direction: column; gap: 8px; width: 40%; max-width: 250px; }
+        .bar-wrap {
+            width: 100%; height: 20px; background: rgba(0,0,0,0.6); 
+            border: 2px solid rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden;
+            position: relative; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .bar-fill { height: 100%; width: 100%; transition: width 0.2s linear; }
+        #hp-fill { background: linear-gradient(90deg, #ff2a2a, #ff5e5e); }
+        #food-fill { background: linear-gradient(90deg, #ff9900, #ffc845); }
+        #water-fill { background: linear-gradient(90deg, #0073ff, #45a7ff); }
+        .bar-icon { position: absolute; left: 6px; top: -1px; font-size: 14px; text-shadow: 0 2px 2px #000; }
+
+        .inventory { display: flex; gap: 10px; }
+        .inv-item {
+            background: rgba(15, 25, 45, 0.85); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 12px;
+            padding: 8px 15px; color: white; font-weight: 900; font-size: 16px;
+            display: flex; align-items: center; gap: 6px; box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        }
+
+        /* Sağ Crafting (İnşa) Menüsü */
+        #build-menu {
+            position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 10px; pointer-events: auto;
+        }
+        .craft-btn {
+            background: rgba(10, 15, 30, 0.9); backdrop-filter: blur(8px);
+            border: 2px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 10px;
+            color: white; text-align: center; cursor: pointer; transition: transform 0.1s, border-color 0.2s;
+            width: 75px; box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        }
+        .craft-btn:active { transform: scale(0.9); }
+        .craft-btn.active { 
+            border-color: #00ff88; background: rgba(0, 255, 136, 0.15); box-shadow: 0 0 20px rgba(0,255,136,0.3);
+        }
+        .craft-btn .icon { font-size: 24px; display: block; margin-bottom: 2px; }
+        .craft-btn .cost { font-size: 10px; color: #b3c2d1; }
+
+        /* Aksiyon Butonu ve Mesajlar */
+        #center-msg {
+            position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(255, 50, 50, 0.9); color: white; padding: 12px 30px;
+            border-radius: 20px; font-weight: 900; font-size: 18px; letter-spacing: 1px;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+
+        #action-btn {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 70px; height: 70px; border-radius: 50%; background: #ff3333;
+            border: 4px solid rgba(255,255,255,0.2); color: white; font-size: 28px;
+            display: flex; justify-content: center; align-items: center; cursor: pointer;
+            box-shadow: 0 0 25px rgba(255,50,50,0.5); pointer-events: auto; transition: transform 0.1s;
+        }
+        #action-btn:active { transform: translateX(-50%) scale(0.85); }
+
+        /* Custom Joystick UI */
+        .touch-zone { position: absolute; bottom: 0; width: 50%; height: 50%; pointer-events: auto; }
+        #touch-left { left: 0; }
+        #touch-right { right: 0; }
+        .joy-base {
+            position: absolute; width: 120px; height: 120px; border-radius: 50%;
+            background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.15);
+            display: none; transform: translate(-50%, -50%); pointer-events: none;
+        }
+        .joy-knob {
+            position: absolute; width: 50px; height: 50px; border-radius: 50%;
+            background: rgba(255,255,255,0.5); top: 35px; left: 35px; box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        }
+        
+        #error-screen {
+            position: absolute; top:0; left:0; width:100%; height:100%; z-index: 9999;
+            background: #111; color: #ff3333; padding: 20px; display: none; overflow: auto;
+            font-family: monospace; font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="error-screen"></div>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="ui-layer">
+        <div id="top-hud">
+            <div class="status-bars">
+                <div class="bar-wrap"><div class="bar-fill" id="hp-fill"></div><span class="bar-icon">❤️</span></div>
+                <div class="bar-wrap"><div class="bar-fill" id="food-fill"></div><span class="bar-icon">🍗</span></div>
+                <div class="bar-wrap"><div class="bar-fill" id="water-fill"></div><span class="bar-icon">💧</span></div>
+            </div>
+            <div class="inventory">
+                <div class="inv-item">🪵 <span id="ui-wood">0</span></div>
+                <div class="inv-item">🔩 <span id="ui-metal">0</span></div>
+            </div>
+        </div>
+
+        <div id="center-msg">MESAJ</div>
+
+        <div id="build-menu">
+            <div class="craft-btn active" onclick="setMode('hook', this)"><span class="icon">🪝</span><span class="cost">Kanca</span></div>
+            <div class="craft-btn" onclick="setMode('platform', this)"><span class="icon">🟫</span><span class="cost">2🪵 1🔩</span></div>
+            <div class="craft-btn" onclick="setMode('purifier', this)"><span class="icon">🚰</span><span class="cost">4🔩</span></div>
+            <div class="craft-btn" onclick="setMode('grill', this)"><span class="icon">🔥</span><span class="cost">4🪵 1🔩</span></div>
+            <div class="craft-btn" onclick="setMode('spike', this)"><span class="icon">⚔️</span><span class="cost">3🪵 3🔩</span></div>
+        </div>
+
+        <div id="action-btn" onclick="executeAction()">🪝</div>
+
+        <div id="touch-left" class="touch-zone"><div id="joy-base-l" class="joy-base"><div id="joy-knob-l" class="joy-knob"></div></div></div>
+        <div id="touch-right" class="touch-zone"><div id="joy-base-r" class="joy-base"><div id="joy-knob-r" class="joy-knob"></div></div></div>
+    </div>
+
+    <script>
+        // Hata Yakalayıcı (Cihaza özel hataları görmek için)
+        window.onerror = function(msg, url, line, col, error) {
+            const errDiv = document.getElementById('error-screen');
+            errDiv.style.display = 'block';
+            errDiv.innerHTML += `<b>HATA:</b><br>${msg}<br>Satır: ${line}<br>Sütun: ${col}<br><br>`;
+            return false;
+        };
+
+        try {
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d', { alpha: false }); // alpha:false performansı artırır.
+            
+            // Ekran Boyutlandırma
+            let width, height;
+            function resize() {
+                width = window.innerWidth; height = window.innerHeight;
+                canvas.width = width; canvas.height = height;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            // Oyun Durumu
+            const STATE = {
+                hp: 100, food: 80, water: 80,
+                wood: 15, metal: 10, // Başlangıç eşyaları
+                mode: 'hook', time: 0, tileSize: 100,
+                cam: { x: 0, y: 0, shake: 0 }
+            };
+
+            const CRAFT = {
+                platform: { w: 2, m: 1, hp: 100 }, purifier: { w: 0, m: 4, hp: 50 },
+                grill: { w: 4, m: 1, hp: 50 }, spike: { w: 3, m: 3, hp: 80 }
+            };
+
+            const INPUT = { moveX: 0, moveY: 0, aimX: 0, aimY: -1, isAiming: false };
+
+            // Oyuncu, Kanca ve Köpekbalığı
+            const player = { x: 0, y: 0, speed: 200, angle: 0 };
+            const hook = { active: false, state: 'idle', x: 0, y: 0, vx: 0, vy: 0, target: null };
+            const shark = { x: 400, y: 400, angle: 0, state: 'circling', target: null };
+            
+            const raftGrid = new Map();
+            const debrisPool = [];
+            const particles = [];
+
+            // Performans için tüm kaplamaları offscreen canvas'a çizip önbelleğe alıyoruz
+            const TEX = {};
+            function createTex(w, h, renderFn) {
+                const c = document.createElement('canvas');
+                c.width = w; c.height = h;
+                renderFn(c.getContext('2d'), w, h);
+                return c;
+            }
+
+            TEX.platform = createTex(100, 100, (c, w, h) => {
+                // Su sızması için koyu arkaplan
+                c.fillStyle = '#040b14'; c.fillRect(0,0,w,h);
+                // 3 Adet ultra detaylı kalas
+                for(let i=0; i<3; i++) {
+                    let py = i * 34;
+                    // Odun ana rengi (3D Parlama ve Gölge)
+                    let grad = c.createLinearGradient(0, py, 0, py+32);
+                    grad.addColorStop(0, '#754b2a'); grad.addColorStop(0.5, '#5c3a21'); grad.addColorStop(1, '#3d2514');
+                    c.fillStyle = grad;
+                    c.fillRect(2, py, w-4, 32);
+                    
+                    // Ağaç Damarları (Wood grain)
+                    c.strokeStyle = 'rgba(25, 10, 0, 0.4)'; c.lineWidth = 1.5;
+                    for(let j=0; j<6; j++) {
+                        c.beginPath(); c.moveTo(2, py + Math.random()*32);
+                        c.bezierCurveTo(w/3, py + Math.random()*32, (w/3)*2, py + Math.random()*32, w-4, py + Math.random()*32);
+                        c.stroke();
+                    }
+                    
+                    // Kalas birleşim yeri karanlığı
+                    c.fillStyle = 'rgba(0,0,0,0.4)'; c.fillRect(2, py+30, w-4, 2);
+                    
+                    // Paslı Çiviler
+                    const drawNail = (nx, ny) => {
+                        c.fillStyle = '#111'; c.beginPath(); c.arc(nx, ny, 3.5, 0, Math.PI*2); c.fill();
+                        c.fillStyle = '#9aa1a8'; c.beginPath(); c.arc(nx-1, ny-1, 1.5, 0, Math.PI*2); c.fill();
+                        c.fillStyle = '#5c2d16'; c.beginPath(); c.arc(nx+1, ny+1, 1, 0, Math.PI*2); c.fill(); // Pas
+                    };
+                    drawNail(12, py+16); drawNail(88, py+16);
+                }
+            });
+
+            TEX.hook_obj = createTex(50, 50, (c, w, h) => {
+                c.translate(w/2, h/2);
+                
+                // Metalik gradient
+                let metal = c.createLinearGradient(-8, -25, 8, 25);
+                metal.addColorStop(0, '#ffffff'); metal.addColorStop(0.3, '#9fb2c7'); 
+                metal.addColorStop(0.8, '#4a5b6d'); metal.addColorStop(1, '#232b36');
+                
+                // Gölgelendirme (Derinlik Hissi)
+                c.shadowColor = 'rgba(0,0,0,0.7)'; c.shadowBlur = 8; c.shadowOffsetY = 4;
+                
+                // Kanca Ana Gövde (Şaft)
+                c.fillStyle = metal;
+                c.fillRect(-4, -15, 8, 30);
+                
+                // Üst İp Halkası
+                c.strokeStyle = metal; c.lineWidth = 5;
+                c.beginPath(); c.arc(0, -18, 6, 0, Math.PI*2); c.stroke();
+                
+                // Alt Çelik Kıvrımlar (Prongs)
+                c.lineCap = 'round';
+                c.beginPath(); c.arc(0, 10, 16, 0, Math.PI); c.stroke();
+                
+                // Keskin Uçlar (Parlama efekti ile)
+                c.fillStyle = '#ffffff'; 
+                c.beginPath(); c.moveTo(-20, 10); c.lineTo(-16, -4); c.lineTo(-12, 10); c.fill();
+                c.beginPath(); c.moveTo(20, 10); c.lineTo(16, -4); c.lineTo(12, 10); c.fill();
+            });
+
+            TEX.spike = createTex(100, 100, (c, w, h) => {
+                c.drawImage(TEX.platform, 0, 0);
+                c.shadowColor = 'rgba(0,0,0,0.6)'; c.shadowBlur = 5;
+                let metal = c.createLinearGradient(0,0,100,100);
+                metal.addColorStop(0, '#ddd'); metal.addColorStop(1, '#555');
+                c.strokeStyle = metal; c.lineWidth = 8; c.lineCap = 'round';
+                c.beginPath(); c.moveTo(15,15); c.lineTo(85,85); c.stroke();
+                c.beginPath(); c.moveTo(85,15); c.lineTo(15,85); c.stroke();
+                // Merkezdeki kan lekesi detay
+                c.fillStyle = 'rgba(150, 10, 10, 0.7)'; c.beginPath(); c.arc(50,50,15,0,Math.PI*2); c.fill();
+            });
+            TEX.purifier = createTex(100, 100, (c, w, h) => {
+                c.drawImage(TEX.platform, 0, 0);
+                c.shadowColor = 'rgba(0,0,0,0.6)'; c.shadowBlur = 10;
+                c.fillStyle = '#334455'; c.beginPath(); c.arc(50,50, 38, 0, Math.PI*2); c.fill(); // Hazne
+                c.fillStyle = '#2299ff'; c.beginPath(); c.arc(50,50, 28, 0, Math.PI*2); c.fill(); // Su
+                c.fillStyle = 'rgba(255,255,255,0.4)'; c.beginPath(); c.arc(40,40, 8, 0, Math.PI*2); c.fill(); // Su parlaması
+            });
+            TEX.grill = createTex(100, 100, (c, w, h) => {
+                c.drawImage(TEX.platform, 0, 0);
+                c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 10;
+                c.fillStyle = '#1a1a1a'; c.fillRect(15, 15, 70, 70); // Kömür yatağı
+                c.strokeStyle = '#666'; c.lineWidth = 4;
+                for(let i=25; i<=75; i+=12) { c.beginPath(); c.moveTo(15, i); c.lineTo(85, i); c.stroke(); } // Izgara demirleri
+                // Közler
+                c.shadowColor = '#ff5500'; c.shadowBlur = 15;
+                c.fillStyle = '#ff3300'; c.beginPath(); c.arc(35,45, 8, 0, Math.PI*2); c.fill();
+                c.fillStyle = '#ff8800'; c.beginPath(); c.arc(65,60, 6, 0, Math.PI*2); c.fill();
+            });
+            TEX.wood = createTex(40, 40, (c, w, h) => {
+                let grad = c.createLinearGradient(0,0,40,40);
+                grad.addColorStop(0, '#8a5a32'); grad.addColorStop(1, '#4a2c15');
+                c.fillStyle = grad; c.beginPath(); c.roundRect(8, 2, 24, 36, 4); c.fill();
+                c.strokeStyle = '#3d2514'; c.beginPath(); c.moveTo(15, 2); c.lineTo(15, 38); c.stroke();
+            });
+            TEX.metal = createTex(30, 30, (c, w, h) => {
+                let metal = c.createLinearGradient(0,0,30,30);
+                metal.addColorStop(0, '#eef'); metal.addColorStop(1, '#678');
+                c.fillStyle = metal; c.beginPath(); c.moveTo(15,0); c.lineTo(30,15); c.lineTo(15,30); c.lineTo(0,15); c.fill();
+                c.fillStyle = '#fff'; c.beginPath(); c.arc(15,8, 3, 0, Math.PI*2); c.fill();
+            });
+            TEX.barrel = createTex(44, 44, (c, w, h) => {
+                c.shadowColor = 'rgba(0,0,0,0.5)'; c.shadowBlur = 5;
+                let grad = c.createRadialGradient(22,22,5, 22,22,22);
+                grad.addColorStop(0, '#ff4444'); grad.addColorStop(1, '#990000');
+                c.fillStyle = grad; c.beginPath(); c.arc(22,22, 20, 0, Math.PI*2); c.fill();
+                c.strokeStyle = '#fff'; c.lineWidth = 3; c.beginPath(); c.arc(22,22, 10, 0, Math.PI*2); c.stroke(); // İşaret
+            });
+
+            // Başlangıç Salı 3x3
+            function addTile(gx, gy, type) {
+                raftGrid.set(`${gx},${gy}`, { x: gx*100, y: gy*100, gx, gy, type, hp: CRAFT[type]?CRAFT[type].hp:100 });
+            }
+            for(let x=-1; x<=1; x++) for(let y=-1; y<=1; y++) addTile(x,y, 'platform');
+
+            // Çöp Havuzu
+            for(let i=0; i<20; i++) {
+                const r = Math.random();
+                const type = r > 0.6 ? 'wood' : (r > 0.2 ? 'metal' : 'barrel');
+                debrisPool.push({ active: false, type, x: 0, y: 0, baseY: 0, wave: Math.random()*10, caught: false });
+            }
+            function spawnDebris() {
+                const d = debrisPool.find(p => !p.active);
+                if(d) {
+                    const ang = Math.random() * Math.PI * 2;
+                    const dist = 600 + Math.random() * 400;
+                    d.x = player.x + Math.cos(ang) * dist; d.y = player.y + Math.sin(ang) * dist;
+                    d.baseY = d.y; d.active = true; d.caught = false;
+                }
+            }
+            for(let i=0; i<10; i++) spawnDebris();
+
+            // Partikül Sistemi
+            function spawnParticles(x, y, color, count) {
+                for(let i=0; i<count; i++) {
+                    const a = Math.random() * Math.PI * 2, v = 50 + Math.random()*100;
+                    particles.push({ x, y, vx: Math.cos(a)*v, vy: Math.sin(a)*v, life: 1, color });
+                }
+            }
+
+            // UI ve Etkileşimler
+            const msgEl = document.getElementById('center-msg');
+            const showMsg = (txt, color="#ff3333") => {
+                msgEl.innerText = txt; msgEl.style.background = color; msgEl.style.opacity = 1;
+                clearTimeout(msgEl.tout); msgEl.tout = setTimeout(()=> msgEl.style.opacity = 0, 1500);
+            };
+            const screenShake = (force) => STATE.cam.shake = force;
+
+            window.setMode = (m, el) => {
+                STATE.mode = m;
+                document.querySelectorAll('.craft-btn').forEach(b => b.classList.remove('active'));
+                if(el) el.classList.add('active');
+                const btn = document.getElementById('action-btn');
+                btn.innerHTML = m === 'hook' ? '🪝' : '🔨';
+                btn.style.background = m === 'hook' ? '#ff3333' : '#00ff88';
+            };
+
+            window.executeAction = () => {
+                if(STATE.mode === 'hook') {
+                    if(hook.state === 'idle') {
+                        hook.state = 'thrown'; hook.x = player.x; hook.y = player.y; hook.target = null;
+                        const len = Math.hypot(INPUT.aimX, INPUT.aimY) || 1;
+                        hook.vx = (INPUT.aimX/len) * 600; hook.vy = (INPUT.aimY/len) * 600;
+                    }
+                } else { // Build
+                    const hDist = 120, aLen = Math.hypot(INPUT.aimX, INPUT.aimY) || 1;
+                    const ax = player.x + (INPUT.aimX/aLen) * hDist, ay = player.y + (INPUT.aimY/aLen) * hDist;
+                    const gx = Math.round(ax/100), gy = Math.round(ay/100), key = `${gx},${gy}`;
+                    
+                    const hasNeighbor = raftGrid.has(`${gx+1},${gy}`) || raftGrid.has(`${gx-1},${gy}`) || raftGrid.has(`${gx},${gy+1}`) || raftGrid.has(`${gx},${gy-1}`);
+                    if(!raftGrid.has(key) && hasNeighbor) {
+                        const cost = CRAFT[STATE.mode];
+                        if(STATE.wood >= cost.w && STATE.metal >= cost.m) {
+                            addTile(gx, gy, STATE.mode);
+                            STATE.wood -= cost.w; STATE.metal -= cost.m;
+                            screenShake(10); spawnParticles(gx*100, gy*100, '#00ff00', 10);
+                        } else showMsg("Kaynak Yetersiz!", "#ff2a2a");
+                    }
+                }
+            };
+
+            const setupJoystick = (zoneId, baseId, knobId, isLeft) => {
+                const zone = document.getElementById(zoneId), base = document.getElementById(baseId), knob = document.getElementById(knobId);
+                let tId = null, sX=0, sY=0;
+
+                const reset = () => {
+                    tId = null; base.style.display = 'none'; knob.style.transform = `translate(0px,0px)`;
+                    if(isLeft) { INPUT.moveX = 0; INPUT.moveY = 0; } 
+                    else { INPUT.isAiming = false; executeAction(); }
+                };
+
+                zone.addEventListener('touchstart', e => {
+                    e.preventDefault(); if(tId !== null) return;
+                    const t = e.changedTouches[0]; tId = t.identifier; sX = t.clientX; sY = t.clientY;
+                    base.style.display = 'block'; base.style.left = sX + 'px'; base.style.top = sY + 'px';
+                    if(!isLeft) INPUT.isAiming = true;
+                }, {passive: false});
+
+                zone.addEventListener('touchmove', e => {
+                    e.preventDefault();
+                    for(let t of e.changedTouches) {
+                        if(t.identifier === tId) {
+                            let dx = t.clientX - sX, dy = t.clientY - sY, dist = Math.hypot(dx, dy);
+                            const max = 40; if(dist > max) { dx = (dx/dist)*max; dy = (dy/dist)*max; }
+                            knob.style.transform = `translate(${dx}px, ${dy}px)`;
+                            if(isLeft) { INPUT.moveX = dx/max; INPUT.moveY = dy/max; } 
+                            else { INPUT.aimX = dx/max; INPUT.aimY = dy/max; }
+                        }
+                    }
+                }, {passive: false});
+                zone.addEventListener('touchend', e=>{ e.preventDefault(); reset();});
+                zone.addEventListener('touchcancel', e=>{ e.preventDefault(); reset();});
+            };
+            setupJoystick('touch-left', 'joy-base-l', 'joy-knob-l', true);
+            setupJoystick('touch-right', 'joy-base-r', 'joy-knob-r', false);
+
+            // PC Controls
+            const keys = {};
+            window.addEventListener('keydown', e => keys[e.code] = true);
+            window.addEventListener('keyup', e => keys[e.code] = false);
+            canvas.addEventListener('mousemove', e => {
+                const dx = e.clientX - width/2, dy = e.clientY - height/2;
+                if(Math.hypot(dx,dy)>10) { INPUT.aimX = dx; INPUT.aimY = dy; }
+            });
+            canvas.addEventListener('mousedown', executeAction);
+
+
+            let lastTime = performance.now();
+            function update() {
+                const now = performance.now();
+                const dt = Math.min((now - lastTime) / 1000, 0.1); // max delta 0.1s
+                lastTime = now;
+                STATE.time += dt;
+
+                // 1. Hayatta Kalma (Survival)
+                STATE.food -= 0.5 * dt; STATE.water -= 0.8 * dt;
+                if(STATE.food <= 0 || STATE.water <= 0) STATE.hp -= 2 * dt;
+                if(STATE.hp <= 0) { showMsg("ÖLDÜN!", "#000"); return; } // Oyun durur
+
+                // Pasif Üretim
+                raftGrid.forEach(t => {
+                    if(t.type === 'purifier') STATE.water = Math.min(100, STATE.water + 1 * dt);
+                    if(t.type === 'grill') STATE.food = Math.min(100, STATE.food + 1 * dt);
+                });
+
+                // UI Güncelle
+                document.getElementById('hp-fill').style.width = Math.max(0, STATE.hp) + '%';
+                document.getElementById('food-fill').style.width = Math.max(0, STATE.food) + '%';
+                document.getElementById('water-fill').style.width = Math.max(0, STATE.water) + '%';
+                document.getElementById('ui-wood').innerText = STATE.wood;
+                document.getElementById('ui-metal').innerText = STATE.metal;
+
+                // 2. Oyuncu Hareketi
+                let mx = INPUT.moveX, my = INPUT.moveY;
+                if (keys['KeyW']) my = -1; if (keys['KeyS']) my = 1;
+                if (keys['KeyA']) mx = -1; if (keys['KeyD']) mx = 1;
+                const mLen = Math.hypot(mx, my);
+                if(mLen > 0) {
+                    const nx = player.x + (mx/mLen) * player.speed * dt;
+                    const ny = player.y + (my/mLen) * player.speed * dt;
+                    // Sınır kontrolü (Sadece salda yürü)
+                    const gx = Math.round(nx/100), gy = Math.round(ny/100);
+                    if(raftGrid.has(`${gx},${Math.round(player.y/100)}`)) player.x = nx;
+                    if(raftGrid.has(`${Math.round(player.x/100)},${gy}`)) player.y = ny;
+                }
+                player.angle = Math.atan2(INPUT.aimY, INPUT.aimX) + Math.PI/2;
+
+                // 3. Kanca Fiziği
+                if(hook.state === 'thrown') {
+                    hook.x += hook.vx * dt; hook.y += hook.vy * dt;
+                    if(Math.hypot(hook.x - player.x, hook.y - player.y) > 400) hook.state = 'returning';
+                    // Çarpışma
+                    for(let d of debrisPool) {
+                        if(d.active && !d.caught && Math.hypot(hook.x-d.x, hook.y-d.y)<35) {
+                            d.caught = true; hook.target = d; hook.state = 'returning';
+                            spawnParticles(d.x, d.y, '#fff', 5); break;
+                        }
+                    }
+                } else if(hook.state === 'returning') {
+                    const dx = player.x - hook.x, dy = player.y - hook.y, dist = Math.hypot(dx, dy);
+                    if(dist < 20) {
+                        hook.state = 'idle';
+                        if(hook.target) {
+                            if(hook.target.type === 'wood') STATE.wood += 2;
+                            else if(hook.target.type === 'metal') STATE.metal += 2;
+                            else if(hook.target.type === 'barrel') { STATE.food = Math.min(100, STATE.food+20); STATE.water = Math.min(100, STATE.water+20); }
+                            hook.target.active = false; showMsg("+Eşya", "#00ff88");
+                        }
+                    } else {
+                        hook.x += (dx/dist) * 400 * dt; hook.y += (dy/dist) * 400 * dt;
+                        if(hook.target) { hook.target.x = hook.x; hook.target.y = hook.y; }
+                    }
+                }
+
+                // 4. Çöpler
+                if(Math.random() < 0.02) spawnDebris();
+                debrisPool.forEach(d => {
+                    if(d.active && !d.caught) {
+                        d.x -= 30 * dt; d.y = d.baseY + Math.sin(STATE.time*2 + d.wave) * 10;
+                        if(d.x < player.x - 1000) d.active = false;
+                    }
+                });
+
+                // 5. Köpekbalığı YZ
+                if(shark.state === 'circling') {
+                    shark.angle += 0.5 * dt; const r = 400 + Math.sin(STATE.time)*50;
+                    shark.x = player.x + Math.cos(shark.angle)*r; shark.y = player.y + Math.sin(shark.angle)*r;
+                    if(Math.random() < 0.005 && raftGrid.size > 0) {
+                        const tiles = Array.from(raftGrid.values());
+                        shark.target = tiles[Math.floor(Math.random() * tiles.length)];
+                        shark.state = 'attacking';
+                    }
+                } else if(shark.state === 'attacking') {
+                    if(!shark.target || !raftGrid.has(`${shark.target.gx},${shark.target.gy}`)) { shark.state = 'fleeing'; return; }
+                    const dx = shark.target.x - shark.x, dy = shark.target.y - shark.y, dist = Math.hypot(dx, dy);
+                    if(dist < 50) {
+                        shark.target.hp -= 30 * dt;
+                        if(shark.target.type === 'spike') { shark.state = 'fleeing'; screenShake(10); showMsg("Köpekbalığı Yaralandı!", "#00ff88"); spawnParticles(shark.x, shark.y, '#f00', 10); }
+                        else if(shark.target.hp <= 0) {
+                            raftGrid.delete(`${shark.target.gx},${shark.target.gy}`);
+                            shark.state = 'fleeing'; screenShake(15); showMsg("Zemin Parçalandı!", "#ff2a2a"); spawnParticles(shark.x, shark.y, '#6b4423', 20);
+                        }
+                    } else { shark.x += (dx/dist)*250*dt; shark.y += (dy/dist)*250*dt; }
+                    shark.angle = Math.atan2(dy, dx);
+                } else if(shark.state === 'fleeing') {
+                    const dx = shark.x - player.x, dy = shark.y - player.y, dist = Math.hypot(dx, dy);
+                    shark.x += (dx/dist)*300*dt; shark.y += (dy/dist)*300*dt; shark.angle = Math.atan2(dy, dx);
+                    if(dist > 700) shark.state = 'circling';
+                }
+
+                // 6. Kamera ve Efektler
+                if(STATE.cam.shake > 0) STATE.cam.shake -= 30 * dt;
+                let sx = 0, sy = 0;
+                if(STATE.cam.shake > 0) { sx = (Math.random()-0.5)*STATE.cam.shake; sy = (Math.random()-0.5)*STATE.cam.shake; }
+                
+                const tCamX = width/2 - player.x, tCamY = height/2 - player.y;
+                STATE.cam.x += (tCamX - STATE.cam.x) * 5 * dt;
+                STATE.cam.y += (tCamY - STATE.cam.y) * 5 * dt;
+                
+                for(let i=particles.length-1; i>=0; i--) {
+                    let p = particles[i]; p.x += p.vx*dt; p.y += p.vy*dt; p.life -= 2*dt;
+                    if(p.life<=0) particles.splice(i,1);
+                }
+
+                render(sx, sy);
+                if(STATE.hp > 0) requestAnimationFrame(update);
+            }
+
+            function render(sx, sy) {
+                // --- SU VE OKYANUS (Derinlik ve Işık Kırılması) ---
+                let bgGrad = ctx.createRadialGradient(width/2, height/2, 100, width/2, height/2, width);
+                bgGrad.addColorStop(0, '#0a2342'); bgGrad.addColorStop(1, '#020813');
+                ctx.fillStyle = bgGrad; ctx.fillRect(0,0,width,height);
+                
+                ctx.save();
+                ctx.translate(STATE.cam.x + sx, STATE.cam.y + sy);
+                
+                // Salın Nefes Alma (Dalga) efekti
+                const waveY = Math.sin(STATE.time*1.5) * 6;
+                ctx.translate(0, waveY);
+
+                // --- GÖLGELER KATMAMI (Zemine derinlik katar) ---
+                ctx.fillStyle = 'rgba(0,5,15,0.6)';
+                ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 25; // Yumuşak dev gölgeler
+                raftGrid.forEach(t => { ctx.fillRect(t.x-45, t.y-45, 90, 90); });
+                ctx.shadowBlur = 0; // Performans için hemen kapat
+
+                // --- ZEMİNLER ---
+                raftGrid.forEach(t => { ctx.drawImage(TEX[t.type], t.x-50, t.y-50); });
+
+                // Hologram (İnşa önizleme)
+                if(STATE.mode !== 'hook' && INPUT.isAiming) {
+                    const aLen = Math.hypot(INPUT.aimX, INPUT.aimY)||1;
+                    const gx = Math.round((player.x + (INPUT.aimX/aLen)*120)/100);
+                    const gy = Math.round((player.y + (INPUT.aimY/aLen)*120)/100);
+                    ctx.globalAlpha = 0.6; ctx.drawImage(TEX[STATE.mode], gx*100-50, gy*100-50); ctx.globalAlpha = 1.0;
+                }
+
+                // --- ÇÖPLER ---
+                debrisPool.forEach(d => {
+                    if(d.active) {
+                        ctx.save(); ctx.translate(d.x, d.y); ctx.rotate(STATE.time);
+                        ctx.drawImage(TEX[d.type], -TEX[d.type].width/2, -TEX[d.type].height/2);
+                        ctx.restore();
+                    }
+                });
+
+                // --- KÖPEKBALIĞI (Detaylı Tasarım) ---
+                ctx.save(); ctx.translate(shark.x, shark.y); ctx.rotate(shark.angle);
+                ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 15;
+                ctx.fillStyle = '#142a42'; // Koyu Derin Deniz Mavisi
+                // Gövde
+                ctx.beginPath(); ctx.ellipse(0, 0, 45, 18, 0, 0, Math.PI*2); ctx.fill();
+                // Kuyruk
+                ctx.fillStyle = '#0f2033';
+                ctx.beginPath(); ctx.moveTo(-35, 0); ctx.lineTo(-65, 25); ctx.lineTo(-60, 0); ctx.lineTo(-65, -25); ctx.fill();
+                // Yan Yüzgeçler
+                ctx.beginPath(); ctx.moveTo(10, 15); ctx.lineTo(-10, 35); ctx.lineTo(-15, 15); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(10, -15); ctx.lineTo(-10, -35); ctx.lineTo(-15, -15); ctx.fill();
+                ctx.restore();
+                ctx.shadowBlur = 0;
+
+                // --- KANCA VE DİNAMİK İP ---
+                if(hook.state !== 'idle') {
+                    // Gerçekçi sarkık ip çizimi (Quadratic Bezier)
+                    ctx.strokeStyle = '#b5926c'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(player.x, player.y);
+                    let cpX = (player.x + hook.x)/2;
+                    let cpY = (player.y + hook.y)/2 + (hook.state === 'thrown' ? 30 : 0); // Atılırken ip aşağı sarkar
+                    ctx.quadraticCurveTo(cpX, cpY, hook.x, hook.y);
+                    ctx.stroke();
+                    
+                    // Kancanın kendisi (Fırlatıldığında spin atar)
+                    ctx.save();
+                    ctx.translate(hook.x, hook.y);
+                    if(hook.state === 'thrown') ctx.rotate(STATE.time * 20); // Havada dönme efekti
+                    else ctx.rotate(Math.atan2(hook.y-player.y, hook.x-player.x) + Math.PI/2);
+                    ctx.drawImage(TEX.hook_obj, -25, -25);
+                    ctx.restore();
+                }
+
+                // --- OYUNCU (SURVIVOR KARAKTERİ & DİNAMİK ELLER) ---
+                ctx.save();
+                ctx.translate(player.x, player.y);
+                ctx.rotate(player.angle);
+
+                // Karakter Gölgesi
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.beginPath(); ctx.ellipse(0, 0, 26, 26, 0, 0, Math.PI*2); ctx.fill();
+
+                // Gövde (Tişört)
+                let shirtGrad = ctx.createLinearGradient(-20, -15, 20, 15);
+                shirtGrad.addColorStop(0, '#3a5c8c'); shirtGrad.addColorStop(1, '#1d3454');
+                ctx.fillStyle = shirtGrad;
+                ctx.beginPath(); ctx.roundRect(-24, -14, 48, 28, 10); ctx.fill();
+                
+                // Sırt Çantası (Tepeden Görünüm)
+                ctx.fillStyle = '#4a5d23'; ctx.beginPath(); ctx.roundRect(-16, 12, 32, 12, 5); ctx.fill();
+                ctx.fillStyle = '#324016'; ctx.fillRect(-8, 14, 16, 10); // Çanta cebi
+
+                // Kafa ve Ten
+                let skinGrad = ctx.createRadialGradient(0, -5, 0, 0, -5, 18);
+                skinGrad.addColorStop(0, '#ffd8b3'); skinGrad.addColorStop(1, '#c9986d');
+                ctx.fillStyle = skinGrad;
+                ctx.beginPath(); ctx.arc(0, -5, 18, 0, Math.PI*2); ctx.fill();
+
+                // Bandana ve Saç
+                ctx.fillStyle = '#9e1b1b'; // Kan Kırmızı Bandana
+                ctx.beginPath(); ctx.arc(0, -5, 18, Math.PI, 0); ctx.fill();
+                ctx.fillStyle = '#550a0a'; ctx.fillRect(16, -10, 6, 5); ctx.fillRect(14, -5, 5, 8); // Düğüm
+
+                // Ellerin Konumu (Nişan alma durumuna göre animasyonlu)
+                let lHandX = -22, lHandY = -25;
+                let rHandX = 22, rHandY = -25;
+
+                if (hook.state === 'idle' && STATE.mode === 'hook') {
+                    if (INPUT.isAiming || Math.hypot(INPUT.aimX, INPUT.aimY) > 0.1) {
+                        rHandY = -40; // Sağ el kancayı ileri uzatır
+                        lHandY = -15; // Sol el ipi tutmak için geride kalır
+                    }
+                    // Kancayı sağ elde tut
+                    ctx.save();
+                    ctx.translate(rHandX, rHandY);
+                    ctx.rotate(Math.PI/4);
+                    ctx.drawImage(TEX.hook_obj, -25, -25);
+                    ctx.restore();
+                } else if (hook.state !== 'idle') {
+                    // Kanca çekilirken iki el de önde zorlanır
+                    lHandY = -35; rHandY = -35; lHandX = -12; rHandX = 12;
+                }
+
+                // Ellerin Çizimi
+                ctx.fillStyle = skinGrad;
+                ctx.beginPath(); ctx.arc(lHandX, lHandY, 8, 0, Math.PI*2); ctx.fill(); // Sol El
+                ctx.beginPath(); ctx.arc(rHandX, rHandY, 8, 0, Math.PI*2); ctx.fill(); // Sağ El
+
+                ctx.restore();
+
+                // --- PARTİKÜLLER (Kıvılcımlar ve Kan) ---
+                particles.forEach(p => { 
+                    ctx.fillStyle = p.color; 
+                    ctx.globalAlpha = Math.max(0, p.life); // Smooth fade out
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+                });
+                ctx.globalAlpha = 1.0;
+
+                ctx.restore(); // Kamera sıfırlama
+                
+                // --- GECE EFEKTİ (Vignette & Karanlık) ---
+                const dayCycle = Math.sin(STATE.time * 0.05);
+                if(dayCycle < 0) {
+                    let nightAlpha = Math.min(-dayCycle*0.85, 0.85); // Çok karanlık
+                    let vignette = ctx.createRadialGradient(width/2, height/2, height/3, width/2, height/2, width);
+                    vignette.addColorStop(0, `rgba(0,3,10,${nightAlpha * 0.4})`); // Oyuncunun etrafı aydınlık
+                    vignette.addColorStop(1, `rgba(0,3,10,${nightAlpha})`); // Kenarlar zifiri karanlık
+                    ctx.fillStyle = vignette;
+                    ctx.fillRect(0,0,width,height);
+                }
+            }
+
+            // Oyunu Başlat
+            requestAnimationFrame(update);
+
+        } catch (e) {
+            window.onerror(e.message, null, e.lineNumber, null, e);
+        }
+    </script>
+</body>
+</html>
