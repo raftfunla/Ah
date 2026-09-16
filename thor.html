@@ -134,6 +134,52 @@
             background: #111; color: #ff3333; padding: 20px; display: none; overflow: auto;
             font-family: monospace; font-size: 14px;
         }
+
+        /* Premium HUD layout */
+        #ui-layer { display: block; }
+        #top-hud { position: absolute; inset: 0 0 auto; padding: 18px 22px; align-items: flex-start; }
+        .status-bars { width: 280px; max-width: 30vw; padding: 12px 14px; gap: 7px; background: rgba(5,13,24,0.72); border: 1px solid rgba(180,220,255,0.16); border-radius: 16px; box-shadow: 0 12px 30px rgba(0,0,0,0.28); backdrop-filter: blur(10px); }
+        .bar-wrap { height: 16px; border: 1px solid rgba(255,255,255,0.16); }
+        .bar-icon { left: 7px; top: -2px; font-size: 12px; }
+        .inventory { gap: 8px; padding: 8px; background: rgba(5,13,24,0.72); border: 1px solid rgba(180,220,255,0.16); border-radius: 16px; box-shadow: 0 12px 30px rgba(0,0,0,0.28); backdrop-filter: blur(10px); }
+        .inv-item { min-width: 70px; justify-content: center; padding: 8px 10px; border-radius: 10px; font-size: 14px; }
+        #run-panel { top: 18px; min-width: 250px; padding: 10px 18px; border-radius: 16px; }
+        #skin-btn { left: 22px; top: 142px; padding: 9px 12px; border-radius: 12px; }
+        #build-menu { right: 22px; top: auto; bottom: 22px; transform: none; width: 270px; padding: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; background: rgba(5,13,24,0.78); border: 1px solid rgba(180,220,255,0.16); border-radius: 18px; box-shadow: 0 14px 35px rgba(0,0,0,0.36); backdrop-filter: blur(12px); }
+        #build-menu::before { content: 'YAPI ARAÇLARI'; grid-column: 1 / -1; padding: 2px 4px 4px; color: #8faac2; font-size: 9px; font-weight: 900; letter-spacing: 1.5px; }
+        .craft-btn { width: auto; min-height: 62px; padding: 7px 4px; border: 1px solid rgba(255,255,255,0.1); border-radius: 11px; background: rgba(18,31,49,0.78); }
+        .craft-btn .icon { font-size: 21px; margin-bottom: 1px; }
+        .craft-btn .cost { font-size: 9px; white-space: nowrap; }
+        #action-btn { left: 50%; bottom: 26px; width: 78px; height: 78px; border: 3px solid rgba(255,255,255,0.3); box-shadow: 0 0 0 7px rgba(255,70,70,0.08), 0 12px 30px rgba(0,0,0,0.35); }
+        #hook-models { position: absolute; right: 310px; bottom: 22px; width: 150px; padding: 10px; background: rgba(5,13,24,0.78); border: 1px solid rgba(180,220,255,0.16); border-radius: 18px; box-shadow: 0 14px 35px rgba(0,0,0,0.36); backdrop-filter: blur(12px); pointer-events: auto; }
+        #hook-models-title { color: #8faac2; font-size: 9px; font-weight: 900; letter-spacing: 1.5px; margin-bottom: 7px; }
+        .hook-choice { width: 100%; padding: 7px 8px; margin-top: 5px; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; background: rgba(18,31,49,0.78); color: #edf5ff; font-size: 10px; cursor: pointer; }
+        .hook-choice.active { border-color: #ffd166; background: rgba(255,209,102,0.12); }
+        .hook-choice span:first-child { font-size: 16px; }
+        @media (max-width: 720px) {
+            #top-hud { padding: 10px; }
+            .status-bars { width: 190px; max-width: 48vw; padding: 8px; }
+            .inventory { padding: 5px; gap: 4px; }
+            .inv-item { min-width: 48px; padding: 7px 5px; font-size: 12px; }
+            #run-panel { top: 10px; min-width: 170px; padding: 7px 9px; }
+            #run-title { font-size: 10px; }
+            #run-progress { font-size: 9px; }
+            #run-score { font-size: 9px; }
+            #skin-btn { left: 10px; top: 112px; }
+            #build-menu { right: 10px; bottom: 12px; width: 216px; padding: 7px; gap: 5px; }
+            .craft-btn { min-height: 52px; }
+            .craft-btn .icon { font-size: 18px; }
+            #action-btn { bottom: 17px; width: 68px; height: 68px; }
+            #hook-models { right: 234px; bottom: 12px; width: 122px; padding: 7px; }
+            .hook-choice { font-size: 9px; padding: 6px; }
+        }
+        @media (max-width: 430px) {
+            #run-panel { left: 54%; min-width: 150px; }
+            #hook-models { left: 10px; right: auto; bottom: 92px; width: 142px; }
+            #build-menu { width: 200px; }
+            #action-btn { left: auto; right: 218px; transform: none; }
+            #action-btn:active { transform: scale(0.9); }
+        }
     </style>
 </head>
 <body>
@@ -160,6 +206,13 @@
         </div>
 
         <button id="skin-btn" onclick="cycleSkin()">🎨 Karakter</button>
+
+        <div id="hook-models">
+            <div id="hook-models-title">Kanca modelleri</div>
+            <button class="hook-choice active" data-hook="0"><span>🪝</span><span>Çelik pençe</span></button>
+            <button class="hook-choice" data-hook="1"><span>⚓</span><span>Çapa kanca</span></button>
+            <button class="hook-choice" data-hook="2"><span>✦</span><span>Kristal uç</span></button>
+        </div>
 
         <div id="center-msg">MESAJ</div>
 
@@ -226,7 +279,7 @@
 
             // Oyuncu, Kanca ve Köpekbalığı
             const player = { x: 0, y: 0, speed: 200, angle: 0, skin: 0 };
-            const hook = { active: false, state: 'idle', x: 0, y: 0, vx: 0, vy: 0, target: null, tension: 0 };
+            const hook = { active: false, state: 'idle', x: 0, y: 0, vx: 0, vy: 0, target: null, tension: 0, model: 0 };
             const shark = { x: 400, y: 400, angle: 0, state: 'circling', target: null, fleeTimer: 0, hitFlash: 0 };
             
             const raftGrid = new Map();
@@ -441,6 +494,14 @@
                 player.skin = (player.skin + 1) % 3;
                 showMsg(`Karakter stili ${player.skin + 1}`, '#6cc4ff');
             };
+            document.querySelectorAll('.hook-choice').forEach(choice => {
+                choice.addEventListener('click', () => {
+                    hook.model = Number(choice.dataset.hook);
+                    document.querySelectorAll('.hook-choice').forEach(item => item.classList.remove('active'));
+                    choice.classList.add('active');
+                    showMsg(`Kanca: ${choice.innerText.trim()}`, '#ffd166');
+                });
+            });
             const screenShake = (force) => STATE.cam.shake = force;
 
             window.setMode = (m, el) => {
@@ -739,7 +800,18 @@
                     ctx.translate(hook.x, hook.y);
                     if(hook.state === 'thrown') ctx.rotate(STATE.time * 20); // Havada dönme efekti
                     else ctx.rotate(Math.atan2(hook.y-player.y, hook.x-player.x) + Math.PI/2);
-                    ctx.drawImage(TEX.hook_obj, -25, -25);
+                    if(hook.model === 0) {
+                        ctx.drawImage(TEX.hook_obj, -25, -25);
+                    } else if(hook.model === 1) {
+                        ctx.strokeStyle = '#a9b8c8'; ctx.lineWidth = 5;
+                        ctx.beginPath(); ctx.arc(0, 2, 16, 0, Math.PI); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(-16, 2); ctx.lineTo(-23, -8); ctx.moveTo(16, 2); ctx.lineTo(23, -8); ctx.stroke();
+                        ctx.fillStyle = '#5c6e82'; ctx.fillRect(-4, -18, 8, 21);
+                    } else {
+                        ctx.shadowColor = '#73e7ff'; ctx.shadowBlur = 16;
+                        ctx.fillStyle = '#9ff1ff'; ctx.beginPath(); ctx.moveTo(0, -24); ctx.lineTo(12, 0); ctx.lineTo(0, 24); ctx.lineTo(-12, 0); ctx.closePath(); ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
                     ctx.restore();
                 }
 
@@ -760,8 +832,8 @@
                 ctx.beginPath(); ctx.roundRect(-24, -14, 48, 28, 10); ctx.fill();
                 
                 // Sırt Çantası (Tepeden Görünüm)
-                ctx.fillStyle = '#4a5d23'; ctx.beginPath(); ctx.roundRect(-16, 12, 32, 12, 5); ctx.fill();
-                ctx.fillStyle = '#324016'; ctx.fillRect(-8, 14, 16, 10); // Çanta cebi
+                ctx.fillStyle = player.skin === 1 ? '#7a2f2f' : (player.skin === 2 ? '#124f68' : '#4a5d23'); ctx.beginPath(); ctx.roundRect(-16, 12, 32, 12, 5); ctx.fill();
+                ctx.fillStyle = player.skin === 1 ? '#d29b42' : (player.skin === 2 ? '#58d4dc' : '#324016'); ctx.fillRect(-8, 14, 16, 10); // Çanta cebi
 
                 // Kafa ve Ten
                 let skinGrad = ctx.createRadialGradient(0, -5, 0, 0, -5, 18);
@@ -773,6 +845,14 @@
                 ctx.fillStyle = '#9e1b1b'; // Kan Kırmızı Bandana
                 ctx.beginPath(); ctx.arc(0, -5, 18, Math.PI, 0); ctx.fill();
                 ctx.fillStyle = '#550a0a'; ctx.fillRect(16, -10, 6, 5); ctx.fillRect(14, -5, 5, 8); // Düğüm
+                if(player.skin === 1) {
+                    ctx.fillStyle = '#d9b15f'; ctx.fillRect(-17, -18, 34, 5);
+                    ctx.fillStyle = '#f0c76a'; ctx.beginPath(); ctx.arc(0, -19, 5, 0, Math.PI * 2); ctx.fill();
+                } else if(player.skin === 2) {
+                    ctx.strokeStyle = '#78efff'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.arc(0, -5, 17, Math.PI, Math.PI * 2); ctx.stroke();
+                    ctx.fillStyle = '#b6fbff'; ctx.fillRect(-8, -8, 16, 4);
+                }
 
                 // Ellerin Konumu (Nişan alma durumuna göre animasyonlu)
                 let lHandX = -22, lHandY = -25;
@@ -787,7 +867,9 @@
                     ctx.save();
                     ctx.translate(rHandX, rHandY);
                     ctx.rotate(Math.PI/4);
-                    ctx.drawImage(TEX.hook_obj, -25, -25);
+                    if(hook.model === 0) ctx.drawImage(TEX.hook_obj, -25, -25);
+                    else if(hook.model === 1) { ctx.strokeStyle = '#a9b8c8'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 1, 11, 0, Math.PI); ctx.stroke(); ctx.fillStyle = '#5c6e82'; ctx.fillRect(-3, -15, 6, 15); }
+                    else if(hook.model === 2) { ctx.fillStyle = '#9ff1ff'; ctx.shadowColor = '#73e7ff'; ctx.shadowBlur = 12; ctx.beginPath(); ctx.moveTo(0, -17); ctx.lineTo(9, 0); ctx.lineTo(0, 17); ctx.lineTo(-9, 0); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0; }
                     ctx.restore();
                 } else if (hook.state !== 'idle') {
                     // Kanca çekilirken iki el de önde zorlanır
