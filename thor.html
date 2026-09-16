@@ -44,6 +44,16 @@
         .bar-icon { position: absolute; left: 6px; top: -1px; font-size: 14px; text-shadow: 0 2px 2px #000; }
 
         .inventory { display: flex; gap: 10px; }
+        #run-panel {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            min-width: 220px; padding: 8px 14px; text-align: center;
+            background: rgba(8, 18, 31, 0.72); border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 12px; box-shadow: 0 5px 18px rgba(0,0,0,0.3);
+            color: white; pointer-events: none; backdrop-filter: blur(6px);
+        }
+        #run-title { font-size: 12px; color: #7ae7a2; font-weight: 900; letter-spacing: 0.7px; }
+        #run-progress { margin-top: 2px; font-size: 11px; color: #d5e5f5; }
+        #run-score { margin-top: 3px; font-size: 10px; color: #ffd166; }
         .inv-item {
             background: rgba(15, 25, 45, 0.85); backdrop-filter: blur(8px);
             border: 1px solid rgba(255,255,255,0.15); border-radius: 12px;
@@ -124,6 +134,12 @@
             </div>
         </div>
 
+        <div id="run-panel">
+            <div id="run-title">HAYATTA KAL</div>
+            <div id="run-progress">İlk köpekbalığını kaçır</div>
+            <div id="run-score">Skor 0 · Süre 00:00</div>
+        </div>
+
         <div id="center-msg">MESAJ</div>
 
         <div id="build-menu">
@@ -167,6 +183,8 @@
                 hp: 100, food: 80, water: 80,
                 wood: 15, metal: 10, // Başlangıç eşyaları
                 mode: 'hook', time: 0, tileSize: 100,
+                score: 0, collected: 0, sharkEscapes: 0, buildPulse: 0,
+                storm: 0,
                 cam: { x: 0, y: 0, shake: 0 }
             };
 
@@ -179,8 +197,8 @@
 
             // Oyuncu, Kanca ve Köpekbalığı
             const player = { x: 0, y: 0, speed: 200, angle: 0 };
-            const hook = { active: false, state: 'idle', x: 0, y: 0, vx: 0, vy: 0, target: null };
-            const shark = { x: 400, y: 400, angle: 0, state: 'circling', target: null };
+            const hook = { active: false, state: 'idle', x: 0, y: 0, vx: 0, vy: 0, target: null, tension: 0 };
+            const shark = { x: 400, y: 400, angle: 0, state: 'circling', target: null, fleeTimer: 0, hitFlash: 0 };
             
             const raftGrid = new Map();
             const debrisPool = [];
@@ -343,6 +361,18 @@
                 msgEl.innerText = txt; msgEl.style.background = color; msgEl.style.opacity = 1;
                 clearTimeout(msgEl.tout); msgEl.tout = setTimeout(()=> msgEl.style.opacity = 0, 1500);
             };
+            const runProgressEl = document.getElementById('run-progress');
+            const runScoreEl = document.getElementById('run-score');
+            const updateRunPanel = () => {
+                const minutes = Math.floor(STATE.time / 60).toString().padStart(2, '0');
+                const seconds = Math.floor(STATE.time % 60).toString().padStart(2, '0');
+                let objective = 'İlk köpekbalığını kaçır';
+                if (STATE.sharkEscapes > 0 && STATE.collected < 10) objective = `10 eşya topla (${STATE.collected}/10)`;
+                else if (STATE.collected >= 10) objective = 'Salını büyüt ve hayatta kal';
+                if (shark.state === 'attacking') objective = 'Köpekbalığı saldırıyor!';
+                runProgressEl.innerText = objective;
+                runScoreEl.innerText = `Skor ${STATE.score} · Süre ${minutes}:${seconds}`;
+            };
             const screenShake = (force) => STATE.cam.shake = force;
 
             window.setMode = (m, el) => {
@@ -372,7 +402,7 @@
                         if(STATE.wood >= cost.w && STATE.metal >= cost.m) {
                             addTile(gx, gy, STATE.mode);
                             STATE.wood -= cost.w; STATE.metal -= cost.m;
-                            screenShake(10); spawnParticles(gx*100, gy*100, '#00ff00', 10);
+                            STATE.buildPulse = 1; screenShake(10); spawnParticles(gx*100, gy*100, '#00ff00', 10);
                         } else showMsg("Kaynak Yetersiz!", "#ff2a2a");
                     }
                 }
@@ -430,6 +460,12 @@
                 const dt = Math.min((now - lastTime) / 1000, 0.1); // max delta 0.1s
                 lastTime = now;
                 STATE.time += dt;
+                if (STATE.time > 20 && STATE.storm <= 0 && Math.random() < 0.0015) {
+                    STATE.storm = 8;
+                    showMsg("Fırtına başladı!", "#3d6f9e");
+                }
+                STATE.storm = Math.max(0, STATE.storm - dt);
+                STATE.buildPulse = Math.max(0, STATE.buildPulse - dt * 2.5);
 
                 // 1. Hayatta Kalma (Survival)
                 STATE.food -= 0.5 * dt; STATE.water -= 0.8 * dt;
@@ -448,6 +484,7 @@
                 document.getElementById('water-fill').style.width = Math.max(0, STATE.water) + '%';
                 document.getElementById('ui-wood').innerText = STATE.wood;
                 document.getElementById('ui-metal').innerText = STATE.metal;
+                updateRunPanel();
 
                 // 2. Oyuncu Hareketi
                 let mx = INPUT.moveX, my = INPUT.moveY;
@@ -467,6 +504,7 @@
                 // 3. Kanca Fiziği
                 if(hook.state === 'thrown') {
                     hook.x += hook.vx * dt; hook.y += hook.vy * dt;
+                    hook.tension = Math.min(1, Math.hypot(hook.x-player.x, hook.y-player.y) / 400);
                     if(Math.hypot(hook.x - player.x, hook.y - player.y) > 400) hook.state = 'returning';
                     // Çarpışma
                     for(let d of debrisPool) {
@@ -478,7 +516,8 @@
                     // Kanca köpekbalığına isabet ederse saldırıyı bırakıp kaçar.
                     if(hook.state === 'thrown' && Math.hypot(hook.x-shark.x, hook.y-shark.y)<55) {
                         hook.state = 'returning'; hook.target = null;
-                        shark.state = 'fleeing'; shark.target = null;
+                        shark.state = 'fleeing'; shark.target = null; shark.fleeTimer = 4; shark.hitFlash = 1;
+                        STATE.sharkEscapes += 1; STATE.score += 50;
                         screenShake(8);
                         showMsg("Köpekbalığı kaçtı!", "#00ff88");
                         spawnParticles(shark.x, shark.y, '#ff5555', 12);
@@ -491,10 +530,12 @@
                             if(hook.target.type === 'wood') STATE.wood += 2;
                             else if(hook.target.type === 'metal') STATE.metal += 2;
                             else if(hook.target.type === 'barrel') { STATE.food = Math.min(100, STATE.food+20); STATE.water = Math.min(100, STATE.water+20); }
+                            STATE.collected += 1; STATE.score += 10;
                             hook.target.active = false; showMsg("+Eşya", "#00ff88");
                         }
                     } else {
                         hook.x += (dx/dist) * 400 * dt; hook.y += (dy/dist) * 400 * dt;
+                        hook.tension = Math.min(1, dist / 400);
                         if(hook.target) { hook.target.x = hook.x; hook.target.y = hook.y; }
                     }
                 }
@@ -532,7 +573,8 @@
                 } else if(shark.state === 'fleeing') {
                     const dx = shark.x - player.x, dy = shark.y - player.y, dist = Math.hypot(dx, dy);
                     shark.x += (dx/dist)*300*dt; shark.y += (dy/dist)*300*dt; shark.angle = Math.atan2(dy, dx);
-                    if(dist > 700) shark.state = 'circling';
+                    shark.fleeTimer -= dt; shark.hitFlash = Math.max(0, shark.hitFlash - dt * 3);
+                    if(dist > 700 && shark.fleeTimer <= 0) shark.state = 'circling';
                 }
 
                 // 6. Kamera ve Efektler
@@ -585,7 +627,8 @@
                     const aLen = Math.hypot(INPUT.aimX, INPUT.aimY)||1;
                     const gx = Math.round((player.x + (INPUT.aimX/aLen)*120)/100);
                     const gy = Math.round((player.y + (INPUT.aimY/aLen)*120)/100);
-                    ctx.globalAlpha = 0.6; ctx.drawImage(TEX[STATE.mode], gx*100-50, gy*100-50); ctx.globalAlpha = 1.0;
+                    const previewAlpha = 0.35 + Math.abs(Math.sin(STATE.time * 8)) * 0.3 + STATE.buildPulse * 0.35;
+                    ctx.globalAlpha = Math.min(0.9, previewAlpha); ctx.drawImage(TEX[STATE.mode], gx*100-50, gy*100-50); ctx.globalAlpha = 1.0;
                 }
 
                 // --- ÇÖPLER ---
@@ -600,7 +643,7 @@
                 // --- KÖPEKBALIĞI (Detaylı Tasarım) ---
                 ctx.save(); ctx.translate(shark.x, shark.y); ctx.rotate(shark.angle);
                 ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 15;
-                ctx.fillStyle = '#142a42'; // Koyu Derin Deniz Mavisi
+                ctx.fillStyle = shark.hitFlash > 0 ? '#d94b5b' : '#142a42'; // Darbe aninda kirmizi parlar
                 // Gövde
                 ctx.beginPath(); ctx.ellipse(0, 0, 45, 18, 0, 0, Math.PI*2); ctx.fill();
                 // Kuyruk
@@ -618,7 +661,7 @@
                     ctx.strokeStyle = '#b5926c'; ctx.lineWidth = 3;
                     ctx.beginPath(); ctx.moveTo(player.x, player.y);
                     let cpX = (player.x + hook.x)/2;
-                    let cpY = (player.y + hook.y)/2 + (hook.state === 'thrown' ? 30 : 0); // Atılırken ip aşağı sarkar
+                    let cpY = (player.y + hook.y)/2 + (hook.state === 'thrown' ? 30 + hook.tension * 22 : 8); // Gerilim arttikca ip duzlesir
                     ctx.quadraticCurveTo(cpX, cpY, hook.x, hook.y);
                     ctx.stroke();
                     
@@ -707,6 +750,16 @@
                     vignette.addColorStop(1, `rgba(0,3,10,${nightAlpha})`); // Kenarlar zifiri karanlık
                     ctx.fillStyle = vignette;
                     ctx.fillRect(0,0,width,height);
+                }
+                if(STATE.storm > 0) {
+                    const stormAlpha = Math.min(0.3, STATE.storm < 2 ? STATE.storm * 0.15 : 0.3);
+                    ctx.fillStyle = `rgba(30, 62, 95, ${stormAlpha})`;
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.strokeStyle = `rgba(180, 225, 255, ${0.18 + Math.sin(STATE.time * 18) * 0.05})`;
+                    ctx.lineWidth = 1;
+                    for(let i = -height; i < width + height; i += 28) {
+                        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i - 90, height); ctx.stroke();
+                    }
                 }
             }
 
