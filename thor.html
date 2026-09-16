@@ -740,10 +740,46 @@
             }
 
             function render(sx, sy) {
-                // --- SU VE OKYANUS (Derinlik ve Işık Kırılması) ---
-                let bgGrad = ctx.createRadialGradient(width/2, height/2, 100, width/2, height/2, width);
-                bgGrad.addColorStop(0, '#0a2342'); bgGrad.addColorStop(1, '#020813');
-                ctx.fillStyle = bgGrad; ctx.fillRect(0,0,width,height);
+                // --- OKYANUS YÜZEYİ (Açık su, dalga ritmi ve ışık kırılması) ---
+                const stormShade = STATE.storm > 0 ? 0.28 : 0;
+                const seaGrad = ctx.createLinearGradient(0, 0, 0, height);
+                seaGrad.addColorStop(0, `rgb(${Math.round(34 - stormShade * 20)}, ${Math.round(154 - stormShade * 65)}, ${Math.round(190 - stormShade * 50)})`);
+                seaGrad.addColorStop(0.42, `rgb(${Math.round(13 - stormShade * 9)}, ${Math.round(111 - stormShade * 42)}, ${Math.round(151 - stormShade * 38)})`);
+                seaGrad.addColorStop(1, `rgb(${Math.round(5 - stormShade * 3)}, ${Math.round(48 - stormShade * 20)}, ${Math.round(78 - stormShade * 19)})`);
+                ctx.fillStyle = seaGrad; ctx.fillRect(0, 0, width, height);
+
+                const sunX = width * 0.2 + Math.sin(STATE.time * 0.08) * width * 0.06;
+                const sunY = height * 0.22;
+                const light = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, width * 0.7);
+                light.addColorStop(0, `rgba(214, 255, 247, ${0.18 - stormShade * 0.2})`);
+                light.addColorStop(0.35, `rgba(111, 225, 221, ${0.08 - stormShade * 0.06})`);
+                light.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = light; ctx.fillRect(0, 0, width, height);
+
+                // Birbirinden farklı hızlarda kayan dalga şeritleri yüzeye hareket verir.
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                for(let band = -2; band < 19; band++) {
+                    const baseY = band * 58 + ((STATE.time * (10 + band % 3 * 4)) % 58) - 58;
+                    ctx.strokeStyle = `rgba(173, 244, 239, ${0.08 + (band % 4) * 0.018 - stormShade * 0.09})`;
+                    ctx.lineWidth = band % 3 === 0 ? 2 : 1;
+                    ctx.beginPath();
+                    ctx.moveTo(-80, baseY);
+                    for(let point = -80; point <= width + 80; point += 80) {
+                        const wave = Math.sin(point * 0.009 + STATE.time * (0.8 + band * 0.035) + band) * 8;
+                        ctx.lineTo(point, baseY + wave);
+                    }
+                    ctx.stroke();
+                }
+                // Uzak yüzey köpükleri, suyun düz bir renk gibi görünmesini engeller.
+                for(let foam = 0; foam < 28; foam++) {
+                    const fx = (foam * 137 + STATE.time * (18 + foam % 4 * 7)) % (width + 100) - 50;
+                    const fy = (foam * 79 + Math.sin(STATE.time * 0.7 + foam) * 25) % (height + 60) - 30;
+                    ctx.strokeStyle = `rgba(214, 255, 250, ${0.12 - stormShade * 0.08})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + 14, fy + 2); ctx.stroke();
+                }
+                ctx.restore();
                 
                 ctx.save();
                 // Kamerayı ekran merkezinden ölçeklemek HUD'u sabit bırakır.
@@ -956,7 +992,7 @@
                 // --- GECE EFEKTİ (Vignette & Karanlık) ---
                 const dayCycle = Math.sin(STATE.time * 0.05);
                 if(dayCycle < 0) {
-                    let nightAlpha = Math.min(-dayCycle*0.85, 0.85); // Çok karanlık
+                    let nightAlpha = Math.min(-dayCycle*0.45, 0.45); // Gece atmosferi, oynanisi kapatmayacak kadar acik
                     let vignette = ctx.createRadialGradient(width/2, height/2, height/3, width/2, height/2, width);
                     vignette.addColorStop(0, `rgba(0,3,10,${nightAlpha * 0.4})`); // Oyuncunun etrafı aydınlık
                     vignette.addColorStop(1, `rgba(0,3,10,${nightAlpha})`); // Kenarlar zifiri karanlık
