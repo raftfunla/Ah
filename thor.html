@@ -54,6 +54,16 @@
         #run-title { font-size: 12px; color: #7ae7a2; font-weight: 900; letter-spacing: 0.7px; }
         #run-progress { margin-top: 2px; font-size: 11px; color: #d5e5f5; }
         #run-score { margin-top: 3px; font-size: 10px; color: #ffd166; }
+        #profile-card { position: absolute; right: 22px; top: 108px; width: 190px; padding: 10px 12px; border: 1px solid rgba(180,220,255,0.16); border-radius: 14px; background: rgba(5,13,24,0.72); box-shadow: 0 12px 30px rgba(0,0,0,0.28); backdrop-filter: blur(10px); pointer-events: none; }
+        #profile-line { display: flex; justify-content: space-between; align-items: center; color: #edf8ff; font-size: 11px; font-weight: 900; }
+        #profile-level { color: #7ae7a2; }
+        #xp-track { height: 5px; margin-top: 7px; overflow: hidden; border-radius: 8px; background: rgba(255,255,255,0.1); }
+        #xp-fill { width: 0%; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #7ae7a2, #6cc4ff); transition: width .25s ease; }
+        #quest-card { position: absolute; left: 22px; top: 208px; width: 220px; padding: 11px 13px; border-left: 3px solid #ffd166; border-radius: 0 13px 13px 0; background: rgba(5,13,24,0.7); box-shadow: 0 12px 30px rgba(0,0,0,0.24); backdrop-filter: blur(8px); pointer-events: none; }
+        #quest-kicker { color: #ffd166; font-size: 8px; font-weight: 900; letter-spacing: 1.4px; }
+        #quest-name { margin-top: 4px; color: #f1f8ff; font-size: 12px; font-weight: 900; }
+        #quest-detail { margin-top: 3px; color: #96afc0; font-size: 9px; }
+        #quest-reward { margin-top: 6px; color: #7ae7a2; font-size: 9px; }
         #skin-btn {
             position: absolute; left: 20px; top: 118px; padding: 7px 10px;
             border: 1px solid rgba(255,255,255,0.14); border-radius: 10px;
@@ -72,6 +82,7 @@
         }
         #game-over-card h2 { margin: 0 0 8px; color: #ff7b7b; }
         #result-stats { color: #d8e8f5; font-size: 13px; line-height: 1.8; }
+        #result-meta { margin-top: 11px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); color: #7ae7a2; font-size: 10px; line-height: 1.7; }
         #restart-btn { margin-top: 16px; padding: 10px 18px; border: 0; border-radius: 10px; background: #7ae7a2; color: #10251b; font-weight: 900; cursor: pointer; }
         .inv-item {
             background: rgba(15, 25, 45, 0.85); backdrop-filter: blur(8px);
@@ -197,6 +208,8 @@
             #run-title { font-size: 10px; }
             #run-progress { font-size: 9px; }
             #run-score { font-size: 9px; }
+            #profile-card { right: 10px; top: 96px; width: 150px; padding: 8px; }
+            #quest-card { left: 10px; top: 174px; width: 180px; }
             #character-dock { left: 10px; top: 112px; }
             #build-menu { right: 10px; bottom: 12px; width: 216px; padding: 7px; gap: 5px; }
             .craft-btn { min-height: 52px; }
@@ -212,6 +225,8 @@
             #action-btn { left: auto; right: 218px; transform: none; }
             #action-btn:active { transform: scale(0.9); }
             #character-panel { width: 245px; }
+            #profile-card { top: 91px; width: 138px; }
+            #quest-card { top: 168px; width: 165px; }
         }
 
         /* Acilir premium arac menusu */
@@ -277,6 +292,18 @@
             <div id="run-score">Skor 0 · Süre 00:00</div>
         </div>
 
+        <div id="profile-card">
+            <div id="profile-line"><span>DENİZ PROFİLİ</span><span id="profile-level">Lv. 1</span></div>
+            <div id="xp-track"><div id="xp-fill"></div></div>
+        </div>
+
+        <div id="quest-card">
+            <div id="quest-kicker">AKTİF GÖREV</div>
+            <div id="quest-name">İlk dalga</div>
+            <div id="quest-detail">1 köpekbalığını kaçır</div>
+            <div id="quest-reward">+100 XP</div>
+        </div>
+
         <div id="character-dock">
             <button id="skin-btn" aria-label="Karakter menüsünü aç" onclick="toggleCharacterMenu()">◉</button>
             <div id="character-panel">
@@ -330,6 +357,7 @@
         <div id="game-over-card">
             <h2>Sal battı</h2>
             <div id="result-stats"></div>
+            <div id="result-meta"></div>
             <button id="restart-btn" onclick="restartRun()">Yeni tura başla</button>
         </div>
     </div>
@@ -365,6 +393,16 @@
                 cam: { x: 0, y: 0, shake: 0 }
             };
 
+            const PROFILE_KEY = 'raftbase-profile-v1';
+            const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{"level":1,"xp":0,"lifetimeScore":0,"lifetimeEscapes":0,"lifetimeLoot":0}');
+            const QUESTS = [
+                { name: 'İlk dalga', detail: '1 köpekbalığını kaçır', type: 'escapes', goal: 1, reward: 100 },
+                { name: 'Kıyı toplayıcısı', detail: '10 eşya topla', type: 'loot', goal: 10, reward: 150 },
+                { name: 'Mimar', detail: '5 yapı kur', type: 'builds', goal: 5, reward: 180 },
+                { name: 'Derinlik avcısı', detail: '1 keşif landmarkı bul', type: 'discover', goal: 1, reward: 250 }
+            ];
+            const questState = { index: Math.min(profile.level - 1, QUESTS.length - 1), progress: 0, claimed: false };
+
             const CRAFT = {
                 platform: { w: 2, m: 1, hp: 100 }, purifier: { w: 0, m: 4, hp: 50 },
                 grill: { w: 4, m: 1, hp: 50 }, spike: { w: 3, m: 3, hp: 80 }
@@ -380,6 +418,11 @@
             const raftGrid = new Map();
             const debrisPool = [];
             const particles = [];
+            const landmarks = [
+                { type: 'lighthouse', x: 285, y: -235, active: true, name: 'Eski deniz feneri' },
+                { type: 'wreck', x: -330, y: 210, active: true, name: 'Batık sandık' },
+                { type: 'buoy', x: 310, y: 265, active: true, name: 'Sinyal şamandırası' }
+            ];
 
             // Performans için tüm kaplamaları offscreen canvas'a çizip önbelleğe alıyoruz
             const TEX = {};
@@ -550,9 +593,37 @@
             };
             const runProgressEl = document.getElementById('run-progress');
             const runScoreEl = document.getElementById('run-score');
+            const profileLevelEl = document.getElementById('profile-level');
+            const xpFillEl = document.getElementById('xp-fill');
+            const questNameEl = document.getElementById('quest-name');
+            const questDetailEl = document.getElementById('quest-detail');
+            const questRewardEl = document.getElementById('quest-reward');
             const gameOverEl = document.getElementById('game-over');
             const resultStatsEl = document.getElementById('result-stats');
+            const resultMetaEl = document.getElementById('result-meta');
             let runEnded = false;
+            const saveProfile = () => localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+            const addXp = (amount) => {
+                profile.xp += amount;
+                const needed = profile.level * 250;
+                if (profile.xp >= needed) {
+                    profile.xp -= needed; profile.level += 1;
+                    showMsg(`Seviye ${profile.level}!`, '#7ae7a2');
+                }
+                saveProfile();
+            };
+            const updateQuest = (type, amount = 1) => {
+                const quest = QUESTS[questState.index];
+                if (!quest || questState.claimed || quest.type !== type) return;
+                questState.progress = Math.min(quest.goal, questState.progress + amount);
+                if (questState.progress >= quest.goal) {
+                    questState.claimed = true; addXp(quest.reward);
+                    showMsg(`Görev tamamlandı: ${quest.name}`, '#ffd166');
+                    if (questState.index < QUESTS.length - 1) {
+                        questState.index += 1; questState.progress = 0; questState.claimed = false;
+                    }
+                }
+            };
             const updateRunPanel = () => {
                 const minutes = Math.floor(STATE.time / 60).toString().padStart(2, '0');
                 const seconds = Math.floor(STATE.time % 60).toString().padStart(2, '0');
@@ -561,6 +632,12 @@
                 else if (STATE.collected >= 10) objective = 'Salını büyüt ve hayatta kal';
                 runProgressEl.innerText = objective;
                 runScoreEl.innerText = `Skor ${STATE.score} · Süre ${minutes}:${seconds}`;
+                const quest = QUESTS[questState.index];
+                profileLevelEl.innerText = `Lv. ${profile.level}`;
+                xpFillEl.style.width = `${Math.min(100, (profile.xp / (profile.level * 250)) * 100)}%`;
+                questNameEl.innerText = quest.name;
+                questDetailEl.innerText = questState.claimed ? 'Tamamlandı · Yeni hedef açılıyor' : `${quest.detail} (${questState.progress}/${quest.goal})`;
+                questRewardEl.innerText = questState.claimed ? 'Ödül alındı' : `+${quest.reward} XP`;
             };
             const endRun = () => {
                 if (runEnded) return;
@@ -568,6 +645,7 @@
                 const minutes = Math.floor(STATE.time / 60).toString().padStart(2, '0');
                 const seconds = Math.floor(STATE.time % 60).toString().padStart(2, '0');
                 resultStatsEl.innerHTML = `Skor: <b>${STATE.score}</b><br>Süre: <b>${minutes}:${seconds}</b><br>Toplanan eşya: <b>${STATE.collected}</b><br>Köpekbalığı kaçışı: <b>${STATE.sharkEscapes}</b>`;
+                resultMetaEl.innerHTML = `Deniz profili <b>Lv. ${profile.level}</b> · Kalıcı XP <b>${profile.xp}</b><br>Toplam keşif skoru <b>${profile.lifetimeScore}</b>`;
                 gameOverEl.style.display = 'flex';
             };
             window.restartRun = () => {
@@ -579,6 +657,11 @@
                 for(let x=-1; x<=1; x++) for(let y=-1; y<=1; y++) addTile(x, y, 'platform');
                 debrisPool.forEach(d => d.active = false);
                 for(let i=0; i<10; i++) spawnDebris();
+                landmarks.forEach((landmark, index) => {
+                    landmark.active = true;
+                    landmark.x = [285, -330, 310][index];
+                    landmark.y = [-235, 210, 265][index];
+                });
                 shark.x = 400; shark.y = 400; shark.angle = 0; shark.orbit = 0; shark.state = 'circling'; shark.target = null; shark.fleeTimer = 0; shark.attackCooldown = 4; shark.hitFlash = 0;
                 hook.state = 'idle'; hook.target = null; hook.tension = 0;
                 player.x = 0; player.y = 0; runEnded = false;
@@ -678,6 +761,7 @@
                             addTile(gx, gy, STATE.mode);
                             STATE.wood -= cost.w; STATE.metal -= cost.m;
                             STATE.buildPulse = 1; screenShake(10); spawnParticles(gx*100, gy*100, '#00ff00', 10);
+                            updateQuest('builds'); addXp(8);
                         } else showMsg("Kaynak Yetersiz!", "#ff2a2a");
                     } else if(raftGrid.has(key)) showMsg("Bu alan dolu!", "#ff9f43");
                     else showMsg("Salın kenarına nişan al!", "#ff9f43");
@@ -786,11 +870,21 @@
                             spawnParticles(d.x, d.y, '#fff', 5); break;
                         }
                     }
+                    if(hook.state === 'thrown') {
+                        const landmark = landmarks.find(item => item.active && Math.hypot(hook.x - item.x, hook.y - item.y) < 42);
+                        if (landmark) {
+                            landmark.active = false; hook.state = 'returning'; hook.target = null;
+                            STATE.score += 80; profile.lifetimeScore += 80; updateQuest('discover'); addXp(35); saveProfile();
+                            spawnParticles(landmark.x, landmark.y, '#ffd166', 18);
+                            showMsg(`${landmark.name} keşfedildi!`, '#ffd166');
+                        }
+                    }
                     // Kanca köpekbalığına isabet ederse saldırıyı bırakıp kaçar.
                     if(hook.state === 'thrown' && Math.hypot(hook.x-shark.x, hook.y-shark.y)<55) {
                         hook.state = 'returning'; hook.target = null;
                         shark.state = 'fleeing'; shark.target = null; shark.fleeTimer = 4; shark.attackCooldown = 8; shark.hitFlash = 1;
                         STATE.sharkEscapes += 1; STATE.score += 50;
+                        profile.lifetimeEscapes += 1; updateQuest('escapes'); addXp(25); saveProfile();
                         screenShake(8);
                         showMsg("Köpekbalığı kaçtı!", "#00ff88");
                         spawnParticles(shark.x, shark.y, '#ff5555', 12);
@@ -805,6 +899,7 @@
                             else if(hook.target.type === 'barrel') { STATE.food = Math.min(100, STATE.food+20); STATE.water = Math.min(100, STATE.water+20); }
                             else if(hook.target.type === 'gold') { STATE.metal += 8; STATE.score += 40; showMsg("Nadir altın!", "#ffd166"); }
                             STATE.collected += 1; STATE.score += 10;
+                            profile.lifetimeLoot += 1; updateQuest('loot'); addXp(5); saveProfile();
                             hook.target.active = false; showMsg("+Eşya", "#00ff88");
                         }
                     } else {
@@ -933,6 +1028,29 @@
                     ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + 14, fy + 2); ctx.stroke();
                 }
                 ctx.restore();
+
+                // Keşif landmarkları, kancayla ulaşılabilir mesafede net siluetler olarak görünür.
+                landmarks.forEach(landmark => {
+                    if(!landmark.active) return;
+                    ctx.save(); ctx.translate(landmark.x, landmark.y);
+                    const pulse = 1 + Math.sin(STATE.time * 3 + landmark.x) * 0.08;
+                    ctx.globalAlpha = 0.82;
+                    if(landmark.type === 'lighthouse') {
+                        ctx.fillStyle = '#d9e7ed'; ctx.fillRect(-8, -24, 16, 42);
+                        ctx.fillStyle = '#e65c55'; ctx.fillRect(-12, -27, 24, 8);
+                        ctx.fillStyle = '#ffe38a'; ctx.shadowColor = '#ffe38a'; ctx.shadowBlur = 18 * pulse;
+                        ctx.beginPath(); ctx.arc(0, -15, 8 * pulse, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+                    } else if(landmark.type === 'wreck') {
+                        ctx.rotate(-0.3); ctx.fillStyle = '#70462c'; ctx.fillRect(-25, -7, 50, 15);
+                        ctx.fillStyle = '#b17a46'; ctx.fillRect(-18, -15, 10, 28); ctx.fillRect(8, -13, 9, 25);
+                        ctx.strokeStyle = '#e7bd72'; ctx.lineWidth = 3; ctx.strokeRect(-22, -11, 44, 22);
+                    } else {
+                        ctx.fillStyle = '#ef665c'; ctx.beginPath(); ctx.arc(0, 0, 14 * pulse, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = '#fff0b0'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+                        ctx.strokeStyle = '#eaf8ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 14); ctx.lineTo(0, 30); ctx.stroke();
+                    }
+                    ctx.globalAlpha = 1; ctx.restore();
+                });
                 
                 ctx.save();
                 // Kamerayı ekran merkezinden ölçeklemek HUD'u sabit bırakır.
