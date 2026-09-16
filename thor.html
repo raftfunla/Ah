@@ -184,8 +184,8 @@
             };
 
             // Oyuncu, Kanca ve Köpekbalığı
-            const player = { x: 0, y: 0, speed: 200, angle: 0, stride: 0 };
-            const hook = { active: false, state: 'idle', x: 0, y: 0, vx: 0, vy: 0, target: null };
+            const player = { x: 0, y: 0, speed: 200, angle: 0, stride: 0, lean: 0 };
+            const hook = { active: false, state: 'idle', x: 0, y: 0, vx: 0, vy: 0, target: null, swing: 0, anchorX: 0, anchorY: 0 };
             const shark = { x: 400, y: 400, angle: 0, state: 'circling', target: null };
             
             const raftGrid = new Map();
@@ -481,12 +481,21 @@
                     if(raftGrid.has(`${Math.round(player.x/100)},${gy}`)) player.y = ny;
                 }
                 const aimMag = Math.hypot(INPUT.aimX, INPUT.aimY);
-                if (aimMag > 0.1 && Number.isFinite(aimMag)) player.angle = Math.atan2(INPUT.aimY, INPUT.aimX) + Math.PI/2;
+                if (aimMag > 0.1 && Number.isFinite(aimMag)) {
+                    const targetAngle = Math.atan2(INPUT.aimY, INPUT.aimX) + Math.PI/2;
+                    player.angle += (targetAngle - player.angle) * Math.min(1, dt * 10);
+                    player.lean = (targetAngle - player.angle) * 0.7;
+                } else {
+                    player.lean *= 0.8;
+                }
 
                 // 3. Kanca Fiziği
+                const playerHandX = player.x + Math.cos(player.angle - Math.PI/2) * 26;
+                const playerHandY = player.y + Math.sin(player.angle - Math.PI/2) * 26;
                 if(hook.state === 'thrown') {
                     hook.x += hook.vx * dt; hook.y += hook.vy * dt;
-                    if(Math.hypot(hook.x - player.x, hook.y - player.y) > 400) hook.state = 'returning';
+                    hook.swing += dt * 12;
+                    if(Math.hypot(hook.x - player.x, hook.y - player.y) > 420) hook.state = 'returning';
                     // Çarpışma
                     for(let d of debrisPool) {
                         if(d.active && !d.caught && Math.hypot(hook.x-d.x, hook.y-d.y)<35) {
@@ -495,9 +504,10 @@
                         }
                     }
                 } else if(hook.state === 'returning') {
-                    const dx = player.x - hook.x, dy = player.y - hook.y, dist = Math.hypot(dx, dy);
+                    const dx = playerHandX - hook.x, dy = playerHandY - hook.y, dist = Math.hypot(dx, dy);
+                    hook.swing += dt * 16;
                     if(dist < 20) {
-                        hook.state = 'idle';
+                        hook.state = 'idle'; hook.swing = 0;
                         if(hook.target) {
                             if(hook.target.type === 'wood') STATE.wood += 2;
                             else if(hook.target.type === 'metal') STATE.metal += 2;
@@ -505,9 +515,11 @@
                             hook.target.active = false; showMsg("+Eşya", "#00ff88");
                         }
                     } else {
-                        hook.x += (dx/dist) * 400 * dt; hook.y += (dy/dist) * 400 * dt;
+                        hook.x += (dx/dist) * 480 * dt; hook.y += (dy/dist) * 480 * dt;
                         if(hook.target) { hook.target.x = hook.x; hook.target.y = hook.y; }
                     }
+                } else {
+                    hook.swing *= 0.9;
                 }
 
                 // 4. Çöpler
@@ -540,10 +552,23 @@
                         }
                     } else { shark.x += (dx/dist)*250*dt; shark.y += (dy/dist)*250*dt; }
                     shark.angle = Math.atan2(dy, dx);
+                    const pdx = player.x - shark.x, pdy = player.y - shark.y, pDist = Math.hypot(pdx, pdy);
+                    if(pDist < 90) {
+                        STATE.hp -= 18 * dt;
+                        screenShake(6);
+                    }
                 } else if(shark.state === 'fleeing') {
                     const dx = shark.x - player.x, dy = shark.y - player.y, dist = Math.hypot(dx, dy);
                     shark.x += (dx/dist)*300*dt; shark.y += (dy/dist)*300*dt; shark.angle = Math.atan2(dy, dx);
                     if(dist > 700) shark.state = 'circling';
+                }
+
+                if(raftGrid.size < 6 && Math.random() < 0.004) {
+                    const safeTiles = Array.from(raftGrid.values()).filter(t => Math.hypot(player.x - t.x, player.y - t.y) > 150);
+                    if(safeTiles.length) {
+                        const t = safeTiles[Math.floor(Math.random() * safeTiles.length)];
+                        t.hp = Math.min(100, t.hp + 8);
+                    }
                 }
 
                 // 6. Kamera ve Efektler
@@ -551,7 +576,7 @@
                 let sx = 0, sy = 0;
                 if(STATE.cam.shake > 0) { sx = (Math.random()-0.5)*STATE.cam.shake; sy = (Math.random()-0.5)*STATE.cam.shake; }
                 
-                const zoom = STATE.cameraZoom || 0.9;
+                const zoom = STATE.cameraZoom || 0.78;
                 const tCamX = width / (2 * zoom) - player.x;
                 const tCamY = height / (2 * zoom) - player.y;
                 STATE.cam.x += (tCamX - STATE.cam.x) * 5 * dt;
@@ -635,118 +660,119 @@
                     return { x: player.x + p.x, y: player.y + p.y };
                 };
 
-                const rightHandAnchor = armAnchor(26, -16, Math.cos(aimAngle) * (hook.state === 'idle' && STATE.mode === 'hook' ? 24 : 12), Math.sin(aimAngle) * (hook.state === 'idle' && STATE.mode === 'hook' ? 24 : 12));
+                const rightHandAnchor = armAnchor(24, -10, Math.cos(aimAngle) * (hook.state === 'idle' && STATE.mode === 'hook' ? 26 : 14), Math.sin(aimAngle) * (hook.state === 'idle' && STATE.mode === 'hook' ? 26 : 14));
                 const leftHandAnchor = armAnchor(-26, -18, Math.cos(aimAngle + 0.6) * 10, Math.sin(aimAngle + 0.6) * 10);
+                hook.anchorX = rightHandAnchor.x;
+                hook.anchorY = rightHandAnchor.y;
 
                 if(hook.state !== 'idle') {
                     const ropeStart = rightHandAnchor;
+                    const curveLift = hook.state === 'thrown' ? 28 + Math.sin(hook.swing) * 10 : 18;
                     ctx.strokeStyle = '#b5926c'; ctx.lineWidth = 3;
                     ctx.beginPath(); ctx.moveTo(ropeStart.x, ropeStart.y);
-                    let cpX = (ropeStart.x + hook.x)/2;
-                    let cpY = (ropeStart.y + hook.y)/2 + (hook.state === 'thrown' ? 30 : 0);
+                    const cpX = (ropeStart.x + hook.x) / 2;
+                    const cpY = (ropeStart.y + hook.y) / 2 - curveLift + Math.sin(STATE.time * 10 + hook.swing) * 6;
                     ctx.quadraticCurveTo(cpX, cpY, hook.x, hook.y);
                     ctx.stroke();
-                    
+
                     ctx.save();
                     ctx.translate(hook.x, hook.y);
-                    if(hook.state === 'thrown') ctx.rotate(STATE.time * 20);
-                    else ctx.rotate(Math.atan2(hook.y - ropeStart.y, hook.x - ropeStart.x) + Math.PI/2);
+                    if(hook.state === 'thrown') ctx.rotate(STATE.time * 24 + hook.swing * 0.5);
+                    else ctx.rotate(Math.atan2(hook.y - ropeStart.y, hook.x - ropeStart.x) + Math.PI/2 + Math.sin(hook.swing) * 0.15);
                     ctx.drawImage(TEX.hook_obj, -25, -25);
                     ctx.restore();
                 }
 
-                // --- OYUNCU (SURVIVOR KARAKTERİ & DİNAMİK ELLER) ---
+                // --- OYUNCU (TOP-DOWN Taming.io TARZI) ---
                 ctx.save();
                 ctx.translate(player.x, player.y);
                 ctx.rotate(player.angle);
 
-                // Karakter Gölgesi
-                ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                ctx.beginPath(); ctx.ellipse(0, 0, 28, 26, 0, 0, Math.PI*2); ctx.fill();
+                const walkPulse = Math.sin(STATE.time * 9 + player.x * 0.04) * (Math.hypot(INPUT.moveX, INPUT.moveY) > 0 ? 3 : 0.6);
+                const armReach = hook.state === 'idle' && STATE.mode === 'hook' ? 22 : 18;
+                const armSwing = Math.sin(STATE.time * 12 + player.x * 0.05) * (Math.hypot(INPUT.moveX, INPUT.moveY) > 0 ? 12 : 4);
 
-                // Omuzlar ve gövde
-                const bodyLift = Math.sin(STATE.time * 7 + player.x * 0.05) * 1.5;
-                const torsoGrad = ctx.createLinearGradient(-18, -24, 18, 32);
-                torsoGrad.addColorStop(0, '#4a7ab3');
-                torsoGrad.addColorStop(0.35, '#2d4d74');
-                torsoGrad.addColorStop(1, '#1b2f4b');
-                ctx.fillStyle = torsoGrad;
-                ctx.beginPath();
-                ctx.moveTo(-18, -12);
-                ctx.lineTo(18, -12);
-                ctx.quadraticCurveTo(26, 0, 20, 24);
-                ctx.lineTo(-20, 24);
-                ctx.quadraticCurveTo(-26, 0, -18, -12);
-                ctx.fill();
+                // Gölge
+                ctx.fillStyle = 'rgba(0,0,0,0.34)';
+                ctx.beginPath(); ctx.ellipse(0, 16, 26, 14, 0, 0, Math.PI*2); ctx.fill();
 
-                // Göğüs ve omuz detayları
-                ctx.fillStyle = 'rgba(255,255,255,0.12)';
-                ctx.beginPath(); ctx.arc(0, -2, 10, 0, Math.PI*2); ctx.fill();
-                ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(-15, 2); ctx.lineTo(15, 2); ctx.stroke();
+                // Vücut
+                const bodyGrad = ctx.createRadialGradient(-8, -8, 4, 0, 0, 34);
+                bodyGrad.addColorStop(0, '#5d8fe0');
+                bodyGrad.addColorStop(0.55, '#335e9b');
+                bodyGrad.addColorStop(1, '#1a2f4d');
+                ctx.fillStyle = bodyGrad;
+                ctx.beginPath(); ctx.ellipse(0, 0, 22, 18, 0, 0, Math.PI*2); ctx.fill();
 
-                // Bel ve pantolon
-                ctx.fillStyle = '#21364f';
-                ctx.fillRect(-18, 18, 36, 12);
-                ctx.fillStyle = '#0f1c2d';
-                ctx.fillRect(-20, 26, 40, 16);
-                ctx.fillStyle = '#1a2a3d';
-                ctx.fillRect(-8, 18, 16, 24);
+                // Göğüs çizgileri
+                ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(0, 8); ctx.stroke();
 
-                // Kafa ve yüz
-                const skinGrad = ctx.createRadialGradient(0, -28, 4, 0, -28, 24);
+                // Kafa
+                const skinGrad = ctx.createRadialGradient(-2, -16, 2, 0, -16, 20);
                 skinGrad.addColorStop(0, '#ffd9b8');
-                skinGrad.addColorStop(1, '#c68a62');
+                skinGrad.addColorStop(1, '#ca8d66');
                 ctx.fillStyle = skinGrad;
-                ctx.beginPath(); ctx.arc(0, -32, 18, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(0, -18, 13, 0, Math.PI*2); ctx.fill();
 
-                ctx.fillStyle = '#a21f2d';
-                ctx.beginPath(); ctx.arc(0, -32, 18, Math.PI, 0); ctx.fill();
-                ctx.fillStyle = '#4c0d17';
-                ctx.fillRect(13, -38, 5, 6);
-                ctx.fillRect(15, -32, 5, 9);
-                ctx.fillRect(-18, -38, 5, 6);
-                ctx.fillRect(-20, -32, 5, 9);
+                // Bandana / başlık
+                ctx.fillStyle = '#a4232c';
+                ctx.beginPath(); ctx.arc(0, -18, 13, Math.PI, 0); ctx.fill();
+                ctx.fillStyle = '#4b0d18';
+                ctx.fillRect(-14, -22, 6, 7);
+                ctx.fillRect(8, -22, 6, 7);
 
-                // Gözler ve yüz detayı
+                // Gözler
                 ctx.fillStyle = '#111';
-                ctx.beginPath(); ctx.arc(-6, -35, 2, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(6, -35, 2, 0, Math.PI*2); ctx.fill();
-                ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2;
-                ctx.beginPath(); ctx.moveTo(-6, -28); ctx.quadraticCurveTo(0, -25, 6, -28); ctx.stroke();
+                ctx.beginPath(); ctx.arc(-4, -20, 1.8, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(4, -20, 1.8, 0, Math.PI*2); ctx.fill();
 
-                // Kollar ve eller
-                const walkSwing = Math.sin(STATE.time * 9 + player.x * 0.04) * (Math.hypot(INPUT.moveX, INPUT.moveY) > 0 ? 4 : 1.5);
-                const leftArmEndX = -30 + Math.cos(aimAngle + 0.7) * 18 + Math.cos(STATE.time * 5) * 2;
-                const leftArmEndY = -16 + Math.sin(aimAngle + 0.7) * 18 + walkSwing;
-                const rightArmEndX = 30 + Math.cos(aimAngle) * (hook.state === 'idle' && STATE.mode === 'hook' ? 30 : 18);
-                const rightArmEndY = -16 + Math.sin(aimAngle) * (hook.state === 'idle' && STATE.mode === 'hook' ? 30 : 18) - bodyLift * 0.7;
+                // Kollar
+                const leftArmAngle = -Math.PI/2 + 0.75 + armSwing * 0.025;
+                const rightArmAngle = Math.PI/2 - 0.75 - armSwing * 0.025;
+                const leftArmX = Math.cos(leftArmAngle) * (18 + armReach);
+                const leftArmY = Math.sin(leftArmAngle) * (18 + armReach);
+                const rightArmX = Math.cos(rightArmAngle) * (18 + armReach);
+                const rightArmY = Math.sin(rightArmAngle) * (18 + armReach);
 
-                ctx.strokeStyle = '#d9a57a'; ctx.lineWidth = 11; ctx.lineCap = 'round';
-                ctx.beginPath(); ctx.moveTo(-18, -8); ctx.lineTo(leftArmEndX, leftArmEndY); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(18, -8); ctx.lineTo(rightArmEndX, rightArmEndY); ctx.stroke();
+                ctx.strokeStyle = '#d8a578';
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(-8, 3); ctx.lineTo(leftArmX, leftArmY); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(8, 3); ctx.lineTo(rightArmX, rightArmY); ctx.stroke();
 
                 ctx.fillStyle = skinGrad;
-                ctx.beginPath(); ctx.arc(leftArmEndX, leftArmEndY, 7, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(rightArmEndX, rightArmEndY, 7, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(leftArmX, leftArmY, 5.5, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(rightArmX, rightArmY, 5.5, 0, Math.PI*2); ctx.fill();
 
-                // Kanca ellerde daha gerçekçi takılı durur
+                // Kanca
                 if (hook.state === 'idle' && STATE.mode === 'hook') {
+                    const hookAngle = Math.atan2(INPUT.aimY || 0, INPUT.aimX || 1);
+                    const hookX = Math.cos(hookAngle) * (22 + armReach);
+                    const hookY = Math.sin(hookAngle) * (22 + armReach);
                     ctx.save();
-                    ctx.translate(rightArmEndX, rightArmEndY);
-                    ctx.rotate(aimAngle + Math.PI/2.4);
-                    ctx.drawImage(TEX.hook_obj, -18, -18);
+                    ctx.translate(hookX, hookY);
+                    ctx.rotate(hookAngle + Math.PI/2);
+                    ctx.drawImage(TEX.hook_obj, -15, -15);
                     ctx.restore();
                 }
 
-                // Bacaklar hafif hareketli
-                const legSwing = Math.sin(STATE.time * 9 + player.x * 0.04) * (Math.hypot(INPUT.moveX, INPUT.moveY) > 0 ? 7 : 2);
-                ctx.strokeStyle = '#1a2a40'; ctx.lineWidth = 12; ctx.lineCap = 'round';
-                ctx.beginPath(); ctx.moveTo(-10, 30); ctx.lineTo(-12, 52 + legSwing); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(10, 30); ctx.lineTo(12, 52 - legSwing); ctx.stroke();
-                ctx.fillStyle = '#0f1d2d';
-                ctx.fillRect(-17, 52 + legSwing, 12, 10);
-                ctx.fillRect(5, 52 - legSwing, 12, 10);
+                // Bacaklar
+                const leg1X = -8 + Math.cos(-Math.PI/2 + walkPulse * 0.12) * 12;
+                const leg1Y = 18 + Math.sin(-Math.PI/2 + walkPulse * 0.12) * 12;
+                const leg2X = 8 + Math.cos(Math.PI/2 - walkPulse * 0.12) * 12;
+                const leg2Y = 18 + Math.sin(Math.PI/2 - walkPulse * 0.12) * 12;
+
+                ctx.strokeStyle = '#1a2d42';
+                ctx.lineWidth = 7;
+                ctx.beginPath(); ctx.moveTo(-7, 12); ctx.lineTo(leg1X, leg1Y); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(7, 12); ctx.lineTo(leg2X, leg2Y); ctx.stroke();
+
+                ctx.fillStyle = '#0d141b';
+                ctx.fillRect(leg1X - 5, leg1Y + 4, 9, 5);
+                ctx.fillRect(leg2X - 4, leg2Y + 4, 9, 5);
 
                 ctx.restore();
 
