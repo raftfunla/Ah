@@ -944,6 +944,17 @@
                 const waveY = Math.sin(STATE.time*1.5) * 6;
                 ctx.translate(0, waveY);
 
+                // Sal çevresinde suya düşen yumuşak ışık kırılmaları.
+                ctx.save();
+                ctx.globalCompositeOperation = 'screen';
+                for(let caustic = 0; caustic < 14; caustic++) {
+                    const cx = player.x + Math.sin(STATE.time * 0.55 + caustic * 1.7) * (180 + caustic * 13);
+                    const cy = player.y + Math.cos(STATE.time * 0.42 + caustic) * (130 + caustic * 17);
+                    ctx.fillStyle = `rgba(183, 249, 239, ${0.035 + (caustic % 3) * 0.012})`;
+                    ctx.beginPath(); ctx.ellipse(cx, cy, 24 + caustic % 4 * 8, 4 + caustic % 3 * 2, caustic, 0, Math.PI * 2); ctx.fill();
+                }
+                ctx.restore();
+
                 // --- KÖPEKBALIĞI SUYUN ALTINDA ---
                 // Bu katman sal tahtalarından önce çizilir; zemin köpekbalığını örter.
                 const swimSpeed = shark.state === 'fleeing' ? 15 : (shark.state === 'attacking' ? 9 : 4);
@@ -994,12 +1005,41 @@
                     const bubbleY = shark.y + sharkBob - 18 - bubble * 10;
                     ctx.beginPath(); ctx.arc(bubbleX, bubbleY, 3 + bubble, 0, Math.PI * 2); ctx.fill();
                 }
+                // Yüzgeç hızına göre uzayan wake izi.
+                const wakeLength = shark.state === 'fleeing' ? 125 : (shark.state === 'attacking' ? 82 : 52);
+                ctx.save(); ctx.translate(shark.x, shark.y + sharkBob); ctx.rotate(shark.angle);
+                ctx.strokeStyle = `rgba(210, 255, 250, ${shark.state === 'fleeing' ? 0.34 : 0.18})`;
+                ctx.lineWidth = 3; ctx.lineCap = 'round';
+                for(let wake = 0; wake < 3; wake++) {
+                    const offset = (wake - 1) * 12;
+                    ctx.beginPath(); ctx.moveTo(-42, offset); ctx.quadraticCurveTo(-wakeLength * 0.45, offset + Math.sin(STATE.time * 4 + wake) * 8, -wakeLength, offset * 1.5); ctx.stroke();
+                }
+                ctx.restore();
 
                 // --- GÖLGELER KATMAMI (Zemine derinlik katar) ---
                 ctx.fillStyle = 'rgba(0,5,15,0.6)';
                 ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 25; // Yumuşak dev gölgeler
                 raftGrid.forEach(t => { ctx.fillRect(t.x-45, t.y-45, 90, 90); });
                 ctx.shadowBlur = 0; // Performans için hemen kapat
+
+                // Kenar halatları salın parçalarını tek bir yapı gibi birleştirir.
+                ctx.strokeStyle = 'rgba(232, 190, 119, 0.76)'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+                raftGrid.forEach(t => {
+                    const neighbors = [[1,0],[0,1],[-1,0],[0,-1]];
+                    neighbors.forEach(([ox, oy]) => {
+                        if(!raftGrid.has(`${t.gx + ox},${t.gy + oy}`)) {
+                            ctx.beginPath();
+                            if(ox !== 0) {
+                                const edgeX = t.x + ox * 47;
+                                ctx.moveTo(edgeX, t.y - 47); ctx.lineTo(edgeX, t.y + 47);
+                            } else {
+                                const edgeY = t.y + oy * 47;
+                                ctx.moveTo(t.x - 47, edgeY); ctx.lineTo(t.x + 47, edgeY);
+                            }
+                            ctx.stroke();
+                        }
+                    });
+                });
 
                 // --- ZEMİNLER ---
                 raftGrid.forEach(t => {
@@ -1063,13 +1103,16 @@
                 }
 
                 // --- OYUNCU (SURVIVOR KARAKTERİ & DİNAMİK ELLER) ---
+                const moveAmount = Math.min(1, Math.hypot(INPUT.moveX, INPUT.moveY));
+                const stepWave = Math.sin(STATE.time * 13) * moveAmount;
+                const bodyBob = Math.abs(Math.sin(STATE.time * 13)) * moveAmount * 2.5;
                 ctx.save();
-                ctx.translate(player.x, player.y);
+                ctx.translate(player.x, player.y - bodyBob);
                 ctx.rotate(player.angle);
 
                 // Karakter Gölgesi
                 ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                ctx.beginPath(); ctx.ellipse(0, 0, 26, 26, 0, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(0, bodyBob + 2, 26 + moveAmount * 2, 21 - moveAmount * 2, 0, 0, Math.PI*2); ctx.fill();
 
                 // Gövde (Tişört)
                 let shirtGrad = ctx.createLinearGradient(-20, -15, 20, 15);
@@ -1080,7 +1123,7 @@
                 
                 // Sırt Çantası (Tepeden Görünüm)
                 ctx.fillStyle = player.skin === 1 ? '#7a2f2f' : (player.skin === 2 ? '#124f68' : '#4a5d23'); ctx.beginPath(); ctx.roundRect(-16, 12, 32, 12, 5); ctx.fill();
-                ctx.fillStyle = player.skin === 1 ? '#d29b42' : (player.skin === 2 ? '#58d4dc' : '#324016'); ctx.fillRect(-8, 14, 16, 10); // Çanta cebi
+                ctx.fillStyle = player.skin === 1 ? '#d29b42' : (player.skin === 2 ? '#58d4dc' : '#324016'); ctx.fillRect(-8, 14 + stepWave * 0.3, 16, 10); // Çanta cebi
 
                 // Kafa ve Ten
                 let skinGrad = ctx.createRadialGradient(0, -5, 0, 0, -5, 18);
@@ -1102,8 +1145,8 @@
                 }
 
                 // Ellerin Konumu (Nişan alma durumuna göre animasyonlu)
-                let lHandX = -22, lHandY = -25;
-                let rHandX = 22, rHandY = -25;
+                let lHandX = -22 + stepWave * 1.5, lHandY = -25;
+                let rHandX = 22 - stepWave * 1.5, rHandY = -25;
 
                 if (hook.state === 'idle' && STATE.mode === 'hook') {
                     if (INPUT.isAiming || Math.hypot(INPUT.aimX, INPUT.aimY) > 0.1) {
