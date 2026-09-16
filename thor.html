@@ -155,6 +155,26 @@
         .inv-item { min-width: 70px; justify-content: center; padding: 8px 10px; border-radius: 10px; font-size: 14px; }
         #run-panel { top: 18px; min-width: 250px; padding: 10px 18px; border-radius: 16px; }
         #skin-btn { left: 22px; top: 142px; padding: 9px 12px; border-radius: 12px; }
+        #character-dock { position: absolute; left: 22px; top: 142px; z-index: 16; pointer-events: auto; }
+        #skin-btn { position: static; width: 48px; height: 48px; padding: 0; border-radius: 15px; display: grid; place-items: center; font-size: 21px; background: linear-gradient(145deg, #203a55, #0d1b2d); border-color: rgba(190,230,255,0.3); box-shadow: 0 12px 28px rgba(0,0,0,0.35), inset 0 1px rgba(255,255,255,0.15); transition: transform .16s, border-color .16s; }
+        #character-dock.open #skin-btn, #skin-btn:hover { transform: translateY(-3px); border-color: #7ae7a2; }
+        #character-panel { position: absolute; left: 0; top: 58px; width: 270px; padding: 13px; display: none; background: rgba(6,15,27,0.95); border: 1px solid rgba(190,230,255,0.2); border-radius: 18px; box-shadow: 0 22px 55px rgba(0,0,0,0.48), inset 0 1px rgba(255,255,255,0.08); backdrop-filter: blur(18px); }
+        #character-dock.open #character-panel { display: block; animation: panelIn .16s ease-out; }
+        #character-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        #character-head strong { color: #f3fbff; font-size: 14px; }
+        #character-head span { color: #8faac2; font-size: 10px; }
+        #character-list { display: grid; gap: 7px; }
+        .character-choice { display: grid; grid-template-columns: 42px 1fr auto; align-items: center; gap: 9px; width: 100%; min-height: 55px; padding: 7px 9px; color: #edf5ff; text-align: left; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; background: rgba(18,31,49,0.78); cursor: pointer; }
+        .character-choice.active { border-color: #7ae7a2; background: linear-gradient(135deg, rgba(122,231,162,0.2), rgba(23,51,53,0.7)); }
+        .character-avatar { width: 36px; height: 36px; border-radius: 12px; position: relative; box-shadow: inset 0 2px rgba(255,255,255,0.25), 0 5px 12px rgba(0,0,0,0.28); }
+        .character-avatar::before { content: ''; position: absolute; width: 18px; height: 18px; left: 9px; top: 4px; border-radius: 50%; background: #f3c79e; box-shadow: 0 13px 0 3px currentColor; }
+        .character-avatar.pirate { color: #8d4f3d; background: linear-gradient(135deg, #d19b4f, #5a252b); }
+        .character-avatar.diver { color: #176b80; background: linear-gradient(135deg, #79efff, #15526d); }
+        .character-avatar.explorer { color: #6c4b9a; background: linear-gradient(135deg, #c084fc, #30204f); }
+        .character-copy b { display: block; font-size: 11px; }
+        .character-copy small { display: block; margin-top: 2px; color: #91a9bb; font-size: 9px; }
+        .character-check { color: #7ae7a2; font-size: 15px; opacity: 0; }
+        .character-choice.active .character-check { opacity: 1; }
         #build-menu { right: 22px; top: auto; bottom: 22px; transform: none; width: 270px; padding: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; background: rgba(5,13,24,0.78); border: 1px solid rgba(180,220,255,0.16); border-radius: 18px; box-shadow: 0 14px 35px rgba(0,0,0,0.36); backdrop-filter: blur(12px); }
         #build-menu::before { content: 'YAPI ARAÇLARI'; grid-column: 1 / -1; padding: 2px 4px 4px; color: #8faac2; font-size: 9px; font-weight: 900; letter-spacing: 1.5px; }
         .craft-btn { width: auto; min-height: 62px; padding: 7px 4px; border: 1px solid rgba(255,255,255,0.1); border-radius: 11px; background: rgba(18,31,49,0.78); }
@@ -177,7 +197,7 @@
             #run-title { font-size: 10px; }
             #run-progress { font-size: 9px; }
             #run-score { font-size: 9px; }
-            #skin-btn { left: 10px; top: 112px; }
+            #character-dock { left: 10px; top: 112px; }
             #build-menu { right: 10px; bottom: 12px; width: 216px; padding: 7px; gap: 5px; }
             .craft-btn { min-height: 52px; }
             .craft-btn .icon { font-size: 18px; }
@@ -191,6 +211,7 @@
             #build-menu { width: 200px; }
             #action-btn { left: auto; right: 218px; transform: none; }
             #action-btn:active { transform: scale(0.9); }
+            #character-panel { width: 245px; }
         }
 
         /* Acilir premium arac menusu */
@@ -256,7 +277,17 @@
             <div id="run-score">Skor 0 · Süre 00:00</div>
         </div>
 
-        <button id="skin-btn" onclick="cycleSkin()">🎨 Karakter</button>
+        <div id="character-dock">
+            <button id="skin-btn" aria-label="Karakter menüsünü aç" onclick="toggleCharacterMenu()">◉</button>
+            <div id="character-panel">
+                <div id="character-head"><strong>Karakter seç</strong><span>stil ve siluet</span></div>
+                <div id="character-list">
+                    <button class="character-choice active" data-skin="0"><span class="character-avatar pirate"></span><span class="character-copy"><b>Korsan</b><small>Cesur denizci</small></span><span class="character-check">✓</span></button>
+                    <button class="character-choice" data-skin="1"><span class="character-avatar diver"></span><span class="character-copy"><b>Dalgıç</b><small>Derin su uzmanı</small></span><span class="character-check">✓</span></button>
+                    <button class="character-choice" data-skin="2"><span class="character-avatar explorer"></span><span class="character-copy"><b>Neon kaşif</b><small>Gelecekten gelen</small></span><span class="character-check">✓</span></button>
+                </div>
+            </div>
+        </div>
 
         <div id="center-msg">MESAJ</div>
 
@@ -560,6 +591,18 @@
                 player.skin = (player.skin + 1) % 3;
                 showMsg(`Karakter stili ${player.skin + 1}`, '#6cc4ff');
             };
+            window.toggleCharacterMenu = () => {
+                document.getElementById('character-dock').classList.toggle('open');
+            };
+            document.querySelectorAll('.character-choice').forEach(choice => {
+                choice.addEventListener('click', () => {
+                    player.skin = Number(choice.dataset.skin);
+                    document.querySelectorAll('.character-choice').forEach(item => item.classList.remove('active'));
+                    choice.classList.add('active');
+                    showMsg(`${choice.querySelector('b').innerText} seçildi`, '#6cc4ff');
+                    document.getElementById('character-dock').classList.remove('open');
+                });
+            });
             document.querySelectorAll('.hook-choice').forEach(choice => {
                 choice.addEventListener('click', () => {
                     hook.model = Number(choice.dataset.hook);
