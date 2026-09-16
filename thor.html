@@ -389,12 +389,13 @@
                 hp: 100, food: 80, water: 80,
                 wood: 15, metal: 10, // Başlangıç eşyaları
                 mode: 'hook', time: 0, tileSize: 100,
-                score: 0, collected: 0, sharkEscapes: 0, buildPulse: 0,
+                score: 0, collected: 0, sharkEscapes: 0, buildPulse: 0, combo: 0, comboTimer: 0,
                 cam: { x: 0, y: 0, shake: 0 }
             };
 
             const PROFILE_KEY = 'raftbase-profile-v1';
-            const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{"level":1,"xp":0,"lifetimeScore":0,"lifetimeEscapes":0,"lifetimeLoot":0}');
+            const profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || '{"level":1,"xp":0,"lifetimeScore":0,"lifetimeEscapes":0,"lifetimeLoot":0,"achievements":[]}');
+            profile.achievements ||= [];
             const QUESTS = [
                 { name: 'İlk dalga', detail: '1 köpekbalığını kaçır', type: 'escapes', goal: 1, reward: 100 },
                 { name: 'Kıyı toplayıcısı', detail: '10 eşya topla', type: 'loot', goal: 10, reward: 150 },
@@ -612,6 +613,11 @@
                 }
                 saveProfile();
             };
+            const unlockAchievement = (id, label) => {
+                if (profile.achievements.includes(id)) return;
+                profile.achievements.push(id); addXp(60); saveProfile();
+                showMsg(`Rozet açıldı: ${label}`, '#ffd166');
+            };
             const updateQuest = (type, amount = 1) => {
                 const quest = QUESTS[questState.index];
                 if (!quest || questState.claimed || quest.type !== type) return;
@@ -631,7 +637,8 @@
                 if (STATE.sharkEscapes > 0 && STATE.collected < 10) objective = `10 eşya topla (${STATE.collected}/10)`;
                 else if (STATE.collected >= 10) objective = 'Salını büyüt ve hayatta kal';
                 runProgressEl.innerText = objective;
-                runScoreEl.innerText = `Skor ${STATE.score} · Süre ${minutes}:${seconds}`;
+                const comboText = STATE.combo > 1 ? ` · Combo x${STATE.combo}` : '';
+                runScoreEl.innerText = `Skor ${STATE.score} · Süre ${minutes}:${seconds}${comboText}`;
                 const quest = QUESTS[questState.index];
                 profileLevelEl.innerText = `Lv. ${profile.level}`;
                 xpFillEl.style.width = `${Math.min(100, (profile.xp / (profile.level * 250)) * 100)}%`;
@@ -645,13 +652,13 @@
                 const minutes = Math.floor(STATE.time / 60).toString().padStart(2, '0');
                 const seconds = Math.floor(STATE.time % 60).toString().padStart(2, '0');
                 resultStatsEl.innerHTML = `Skor: <b>${STATE.score}</b><br>Süre: <b>${minutes}:${seconds}</b><br>Toplanan eşya: <b>${STATE.collected}</b><br>Köpekbalığı kaçışı: <b>${STATE.sharkEscapes}</b>`;
-                resultMetaEl.innerHTML = `Deniz profili <b>Lv. ${profile.level}</b> · Kalıcı XP <b>${profile.xp}</b><br>Toplam keşif skoru <b>${profile.lifetimeScore}</b>`;
+                resultMetaEl.innerHTML = `Deniz profili <b>Lv. ${profile.level}</b> · Kalıcı XP <b>${profile.xp}</b><br>Toplam keşif skoru <b>${profile.lifetimeScore}</b><br>Rozetler <b>${profile.achievements.length}</b>`;
                 gameOverEl.style.display = 'flex';
             };
             window.restartRun = () => {
                 STATE.hp = 100; STATE.food = 80; STATE.water = 80;
                 STATE.wood = 15; STATE.metal = 10; STATE.score = 0;
-                STATE.collected = 0; STATE.sharkEscapes = 0; STATE.time = 0;
+                STATE.collected = 0; STATE.sharkEscapes = 0; STATE.time = 0; STATE.combo = 0; STATE.comboTimer = 0;
                 STATE.buildPulse = 0; STATE.mode = 'hook';
                 raftGrid.clear();
                 for(let x=-1; x<=1; x++) for(let y=-1; y<=1; y++) addTile(x, y, 'platform');
@@ -762,7 +769,7 @@
                             addTile(gx, gy, STATE.mode);
                             STATE.wood -= cost.w; STATE.metal -= cost.m;
                             STATE.buildPulse = 1; screenShake(10); spawnParticles(gx*100, gy*100, '#00ff00', 10);
-                            updateQuest('builds'); addXp(8);
+                            updateQuest('builds'); addXp(8); unlockAchievement('builder', 'İlk mimar');
                         } else showMsg("Kaynak Yetersiz!", "#ff2a2a");
                     } else if(raftGrid.has(key)) showMsg("Bu alan dolu!", "#ff9f43");
                     else showMsg("Salın kenarına nişan al!", "#ff9f43");
@@ -822,6 +829,10 @@
                 lastTime = now;
                 STATE.time += dt;
                 STATE.buildPulse = Math.max(0, STATE.buildPulse - dt * 2.5);
+                if (STATE.comboTimer > 0) {
+                    STATE.comboTimer -= dt;
+                    if (STATE.comboTimer <= 0) STATE.combo = 0;
+                }
                 shark.attackCooldown = Math.max(0, shark.attackCooldown - dt);
 
                 // 1. Hayatta Kalma (Survival)
@@ -876,7 +887,7 @@
                         const landmark = landmarks.find(item => item.active && Math.hypot(hook.x - item.x, hook.y - item.y) < 42);
                         if (landmark) {
                             landmark.active = false; hook.state = 'returning'; hook.target = null;
-                            STATE.score += 80; profile.lifetimeScore += 80; updateQuest('discover'); addXp(35); saveProfile();
+                            STATE.score += 80; profile.lifetimeScore += 80; updateQuest('discover'); addXp(35); unlockAchievement('explorer', 'Derinlik kaşifi'); saveProfile();
                             spawnParticles(landmark.x, landmark.y, '#ffd166', 18);
                             showMsg(`${landmark.name} keşfedildi!`, '#ffd166');
                         }
@@ -886,7 +897,7 @@
                         hook.state = 'returning'; hook.target = null;
                         shark.state = 'fleeing'; shark.target = null; shark.fleeTimer = 4; shark.attackCooldown = 8; shark.hitFlash = 1;
                         STATE.sharkEscapes += 1; STATE.score += 50;
-                        profile.lifetimeEscapes += 1; updateQuest('escapes'); addXp(25); saveProfile();
+                        profile.lifetimeEscapes += 1; updateQuest('escapes'); addXp(25); unlockAchievement('shark-slayer', 'Köpekbalığı avcısı'); saveProfile();
                         screenShake(8);
                         showMsg("Köpekbalığı kaçtı!", "#00ff88");
                         spawnParticles(shark.x, shark.y, '#ff5555', 12);
@@ -900,8 +911,10 @@
                             else if(hook.target.type === 'metal') STATE.metal += 2;
                             else if(hook.target.type === 'barrel') { STATE.food = Math.min(100, STATE.food+20); STATE.water = Math.min(100, STATE.water+20); }
                             else if(hook.target.type === 'gold') { STATE.metal += 8; STATE.score += 40; showMsg("Nadir altın!", "#ffd166"); }
-                            STATE.collected += 1; STATE.score += 10;
-                            profile.lifetimeLoot += 1; updateQuest('loot'); addXp(5); saveProfile();
+                            STATE.collected += 1; STATE.comboTimer = 5; STATE.combo += 1;
+                            const comboBonus = STATE.combo > 1 ? STATE.combo * 3 : 0;
+                            STATE.score += 10 + comboBonus;
+                            profile.lifetimeLoot += 1; updateQuest('loot'); addXp(5 + comboBonus); unlockAchievement('collector', 'Kıyı toplayıcısı'); saveProfile();
                             hook.target.active = false; showMsg("+Eşya", "#00ff88");
                         }
                     } else {
