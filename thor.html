@@ -517,7 +517,6 @@
                 let objective = 'İlk köpekbalığını kaçır';
                 if (STATE.sharkEscapes > 0 && STATE.collected < 10) objective = `10 eşya topla (${STATE.collected}/10)`;
                 else if (STATE.collected >= 10) objective = 'Salını büyüt ve hayatta kal';
-                if (shark.state === 'attacking') objective = 'Köpekbalığı saldırıyor!';
                 runProgressEl.innerText = objective;
                 runScoreEl.innerText = `Skor ${STATE.score} · Süre ${minutes}:${seconds}`;
             };
@@ -566,6 +565,30 @@
                 document.querySelectorAll('.tool-section').forEach(section => section.classList.toggle('active', section.id === `${tab}-section`));
             };
             const screenShake = (force) => STATE.cam.shake = force;
+            const getOuterTiles = () => Array.from(raftGrid.values()).filter(tile =>
+                !raftGrid.has(`${tile.gx + 1},${tile.gy}`) ||
+                !raftGrid.has(`${tile.gx - 1},${tile.gy}`) ||
+                !raftGrid.has(`${tile.gx},${tile.gy + 1}`) ||
+                !raftGrid.has(`${tile.gx},${tile.gy - 1}`)
+            );
+            const recoverPlayerPosition = () => {
+                if (!raftGrid.size) {
+                    endRun();
+                    return;
+                }
+                const currentKey = `${Math.round(player.x / 100)},${Math.round(player.y / 100)}`;
+                if (raftGrid.has(currentKey)) return;
+                let nearest = null;
+                let nearestDistance = Infinity;
+                raftGrid.forEach(tile => {
+                    const distance = Math.hypot(player.x - tile.x, player.y - tile.y);
+                    if (distance < nearestDistance) { nearestDistance = distance; nearest = tile; }
+                });
+                if (nearest) {
+                    player.x = nearest.x; player.y = nearest.y;
+                    showMsg("Zemin kırıldı! Güvenli zemine geçtin.", "#ff9f43");
+                }
+            };
 
             window.setMode = (m, el) => {
                 STATE.mode = m;
@@ -676,6 +699,7 @@
                 updateRunPanel();
 
                 // 2. Oyuncu Hareketi
+                recoverPlayerPosition();
                 let mx = INPUT.moveX, my = INPUT.moveY;
                 if (keys['KeyW']) my = -1; if (keys['KeyS']) my = 1;
                 if (keys['KeyA']) mx = -1; if (keys['KeyD']) mx = 1;
@@ -744,9 +768,18 @@
                     shark.angle += 0.5 * dt; const r = 400 + Math.sin(STATE.time)*50;
                     shark.x = player.x + Math.cos(shark.angle)*r; shark.y = player.y + Math.sin(shark.angle)*r;
                     if(Math.random() < 0.005 && raftGrid.size > 0) {
-                        const tiles = Array.from(raftGrid.values());
-                        shark.target = tiles[Math.floor(Math.random() * tiles.length)];
-                        shark.state = 'attacking';
+                        const outerTiles = getOuterTiles();
+                        if (outerTiles.length) {
+                            shark.target = outerTiles[Math.floor(Math.random() * outerTiles.length)];
+                            const targetDx = shark.target.x - player.x;
+                            const targetDy = shark.target.y - player.y;
+                            const targetDistance = Math.hypot(targetDx, targetDy) || 1;
+                            // Köpekbalığı her zaman hedefin dışından dalar; iç tile'ların arasından çıkmaz.
+                            shark.x = shark.target.x + (targetDx / targetDistance) * 300;
+                            shark.y = shark.target.y + (targetDy / targetDistance) * 300;
+                            shark.angle = Math.atan2(shark.target.y - shark.y, shark.target.x - shark.x);
+                            shark.state = 'attacking';
+                        }
                     }
                 } else if(shark.state === 'attacking') {
                     if(!shark.target || !raftGrid.has(`${shark.target.gx},${shark.target.gy}`)) { shark.state = 'fleeing'; return; }
@@ -757,6 +790,7 @@
                         else if(shark.target.hp <= 0) {
                             raftGrid.delete(`${shark.target.gx},${shark.target.gy}`);
                             shark.state = 'fleeing'; screenShake(15); showMsg("Zemin Parçalandı!", "#ff2a2a"); spawnParticles(shark.x, shark.y, '#6b4423', 20);
+                            recoverPlayerPosition();
                         }
                     } else { shark.x += (dx/dist)*250*dt; shark.y += (dy/dist)*250*dt; }
                     shark.angle = Math.atan2(dy, dx);
