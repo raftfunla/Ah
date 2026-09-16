@@ -204,6 +204,7 @@
         #tool-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 11px; }
         #tool-head strong { color: #f3fbff; font-size: 14px; }
         #tool-head span { color: #8faac2; font-size: 10px; }
+        #tool-selection { margin: -4px 0 10px; padding: 8px 10px; border: 1px solid rgba(122,231,162,0.2); border-radius: 10px; background: rgba(122,231,162,0.07); color: #bdeed0; font-size: 10px; }
         #tool-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; margin-bottom: 10px; border-radius: 11px; background: rgba(255,255,255,0.05); }
         .tool-tab { border: 0; border-radius: 8px; padding: 8px; background: transparent; color: #8faac2; font-weight: 900; font-size: 11px; cursor: pointer; }
         .tool-tab.active { color: #10251b; background: #7ae7a2; }
@@ -215,6 +216,12 @@
         #tool-panel #build-menu { grid-template-columns: repeat(3, 1fr); gap: 7px; }
         #tool-panel #build-menu::before { display: none; }
         #tool-panel .craft-btn { min-height: 72px; }
+        #tool-panel .craft-btn { display: grid; grid-template-columns: 38px 1fr; grid-template-rows: 1fr auto; column-gap: 7px; align-items: center; text-align: left; padding: 8px; }
+        #tool-panel .craft-btn .build-icon { grid-row: 1 / 3; margin: 0 auto; }
+        .craft-name { display: block; color: #f0f8ff; font-size: 11px; font-weight: 900; line-height: 1.1; }
+        .craft-desc { display: block; color: #91a9bb; font-size: 8px; line-height: 1.15; margin-top: 2px; }
+        .craft-cost { display: block; color: #ffd166; font-size: 9px; margin-top: 4px; }
+        #tool-panel .craft-btn.active { border-color: #7ae7a2; background: linear-gradient(135deg, rgba(122,231,162,0.2), rgba(23,51,53,0.7)); box-shadow: 0 0 20px rgba(122,231,162,0.14); }
         @media (max-width: 720px) {
             #tool-dock { right: 10px; bottom: 12px; }
             #tool-panel { width: min(292px, calc(100vw - 20px)); }
@@ -258,6 +265,7 @@
         <div id="tool-dock">
             <div id="tool-panel">
                 <div id="tool-head"><strong>Oyuncu araçları</strong><span>seç ve kullan</span></div>
+                <div id="tool-selection">Hazır: Kanca</div>
                 <div id="tool-tabs">
                     <button class="tool-tab active" data-tab="hooks" onclick="showToolTab('hooks')">KANCALAR</button>
                     <button class="tool-tab" data-tab="builds" onclick="showToolTab('builds')">İNŞA</button>
@@ -272,11 +280,11 @@
                 </div>
                 <div id="builds-section" class="tool-section">
                     <div id="build-menu">
-                        <div class="craft-btn active" onclick="setMode('hook', this)"><span class="build-icon hook"></span><span class="cost">Kanca</span></div>
-                        <div class="craft-btn" onclick="setMode('platform', this)"><span class="build-icon platform"></span><span class="cost">2🪵 1🔩</span></div>
-                        <div class="craft-btn" onclick="setMode('purifier', this)"><span class="build-icon purifier"></span><span class="cost">4🔩</span></div>
-                        <div class="craft-btn" onclick="setMode('grill', this)"><span class="build-icon grill"></span><span class="cost">4🪵 1🔩</span></div>
-                        <div class="craft-btn" onclick="setMode('spike', this)"><span class="build-icon spike"></span><span class="cost">3🪵 3🔩</span></div>
+                        <div class="craft-btn active" onclick="setMode('hook', this)"><span class="build-icon hook"></span><span><b class="craft-name">Kanca</b><small class="craft-desc">Kaynak çek</small><em class="craft-cost">Hazır</em></span></div>
+                        <div class="craft-btn" onclick="setMode('platform', this)"><span class="build-icon platform"></span><span><b class="craft-name">Platform</b><small class="craft-desc">Salı büyüt</small><em class="craft-cost">2🪵 · 1🔩</em></span></div>
+                        <div class="craft-btn" onclick="setMode('purifier', this)"><span class="build-icon purifier"></span><span><b class="craft-name">Arıtıcı</b><small class="craft-desc">Su üretir</small><em class="craft-cost">4🔩</em></span></div>
+                        <div class="craft-btn" onclick="setMode('grill', this)"><span class="build-icon grill"></span><span><b class="craft-name">Izgara</b><small class="craft-desc">Yemek üretir</small><em class="craft-cost">4🪵 · 1🔩</em></span></div>
+                        <div class="craft-btn" onclick="setMode('spike', this)"><span class="build-icon spike"></span><span><b class="craft-name">Savunma</b><small class="craft-desc">Köpekbalığını yaralar</small><em class="craft-cost">3🪵 · 3🔩</em></span></div>
                     </div>
                 </div>
             </div>
@@ -415,32 +423,35 @@
 
             TEX.spike = createTex(100, 100, (c, w, h) => {
                 c.drawImage(TEX.platform, 0, 0);
-                c.shadowColor = 'rgba(0,0,0,0.6)'; c.shadowBlur = 5;
-                let metal = c.createLinearGradient(0,0,100,100);
-                metal.addColorStop(0, '#ddd'); metal.addColorStop(1, '#555');
-                c.strokeStyle = metal; c.lineWidth = 8; c.lineCap = 'round';
-                c.beginPath(); c.moveTo(15,15); c.lineTo(85,85); c.stroke();
-                c.beginPath(); c.moveTo(85,15); c.lineTo(15,85); c.stroke();
-                // Merkezdeki kan lekesi detay
-                c.fillStyle = 'rgba(150, 10, 10, 0.7)'; c.beginPath(); c.arc(50,50,15,0,Math.PI*2); c.fill();
+                c.fillStyle = 'rgba(7,16,25,0.62)'; c.beginPath(); c.roundRect(10,10,80,80,12); c.fill();
+                c.strokeStyle = '#e3edf4'; c.lineWidth = 6; c.lineCap = 'round';
+                c.beginPath(); c.moveTo(19,19); c.lineTo(81,81); c.moveTo(81,19); c.lineTo(19,81); c.stroke();
+                c.strokeStyle = '#687c8d'; c.lineWidth = 11;
+                c.beginPath(); c.moveTo(19,19); c.lineTo(81,81); c.moveTo(81,19); c.lineTo(19,81); c.stroke();
+                c.strokeStyle = '#dce8ef'; c.lineWidth = 4;
+                c.beginPath(); c.moveTo(19,19); c.lineTo(81,81); c.moveTo(81,19); c.lineTo(19,81); c.stroke();
+                c.fillStyle = '#ffbb38'; c.shadowColor = '#ff7e22'; c.shadowBlur = 12; c.beginPath(); c.arc(50,50,10,0,Math.PI*2); c.fill(); c.shadowBlur = 0;
+                c.fillStyle = '#ffefad'; c.beginPath(); c.arc(47,47,3,0,Math.PI*2); c.fill();
             });
             TEX.purifier = createTex(100, 100, (c, w, h) => {
                 c.drawImage(TEX.platform, 0, 0);
-                c.shadowColor = 'rgba(0,0,0,0.6)'; c.shadowBlur = 10;
-                c.fillStyle = '#334455'; c.beginPath(); c.arc(50,50, 38, 0, Math.PI*2); c.fill(); // Hazne
-                c.fillStyle = '#2299ff'; c.beginPath(); c.arc(50,50, 28, 0, Math.PI*2); c.fill(); // Su
-                c.fillStyle = 'rgba(255,255,255,0.4)'; c.beginPath(); c.arc(40,40, 8, 0, Math.PI*2); c.fill(); // Su parlaması
+                c.fillStyle = '#354b5c'; c.beginPath(); c.roundRect(18,20,64,62,12); c.fill();
+                c.fillStyle = '#152734'; c.beginPath(); c.roundRect(25,28,50,45,9); c.fill();
+                const water = c.createLinearGradient(0,35,0,70); water.addColorStop(0,'#8cecff'); water.addColorStop(1,'#1689c5');
+                c.fillStyle = water; c.beginPath(); c.roundRect(28,38,44,32,7); c.fill();
+                c.strokeStyle = '#bcefff'; c.lineWidth = 3; c.beginPath(); c.moveTo(31,47); c.quadraticCurveTo(42,41,53,47); c.quadraticCurveTo(62,52,69,46); c.stroke();
+                c.strokeStyle = '#9db6c8'; c.lineWidth = 5; c.beginPath(); c.moveTo(50,20); c.lineTo(50,10); c.lineTo(67,10); c.lineTo(67,20); c.stroke();
+                c.fillStyle = '#eafaff'; c.beginPath(); c.arc(39,36,4,0,Math.PI*2); c.fill();
             });
             TEX.grill = createTex(100, 100, (c, w, h) => {
                 c.drawImage(TEX.platform, 0, 0);
-                c.shadowColor = 'rgba(0,0,0,0.8)'; c.shadowBlur = 10;
-                c.fillStyle = '#1a1a1a'; c.fillRect(15, 15, 70, 70); // Kömür yatağı
-                c.strokeStyle = '#666'; c.lineWidth = 4;
-                for(let i=25; i<=75; i+=12) { c.beginPath(); c.moveTo(15, i); c.lineTo(85, i); c.stroke(); } // Izgara demirleri
-                // Közler
-                c.shadowColor = '#ff5500'; c.shadowBlur = 15;
-                c.fillStyle = '#ff3300'; c.beginPath(); c.arc(35,45, 8, 0, Math.PI*2); c.fill();
-                c.fillStyle = '#ff8800'; c.beginPath(); c.arc(65,60, 6, 0, Math.PI*2); c.fill();
+                c.fillStyle = '#1d2932'; c.beginPath(); c.roundRect(13,18,74,66,9); c.fill();
+                c.fillStyle = '#0b1117'; c.beginPath(); c.roundRect(20,26,60,43,5); c.fill();
+                c.strokeStyle = '#a8bac4'; c.lineWidth = 4;
+                for(let i=28; i<=72; i+=11) { c.beginPath(); c.moveTo(i,24); c.lineTo(i,71); c.stroke(); }
+                for(let i=31; i<=65; i+=11) { c.beginPath(); c.moveTo(19,i); c.lineTo(81,i); c.stroke(); }
+                c.shadowColor = '#ff642a'; c.shadowBlur = 16; c.fillStyle = '#ff4b22'; c.beginPath(); c.arc(37,55,8,0,Math.PI*2); c.fill(); c.fillStyle = '#ffc44f'; c.beginPath(); c.arc(61,49,7,0,Math.PI*2); c.fill(); c.shadowBlur = 0;
+                c.fillStyle = '#f0c36e'; c.beginPath(); c.roundRect(34,10,32,7,3); c.fill();
             });
             TEX.wood = createTex(40, 40, (c, w, h) => {
                 let grad = c.createLinearGradient(0,0,40,40);
@@ -594,6 +605,11 @@
                 STATE.mode = m;
                 document.querySelectorAll('.craft-btn').forEach(b => b.classList.remove('active'));
                 if(el) el.classList.add('active');
+                const names = { hook: 'Kanca', platform: 'Platform', purifier: 'Arıtıcı', grill: 'Izgara', spike: 'Savunma' };
+                const descriptions = { hook: 'Kaynak çekmeye hazır', platform: 'Sal alanını genişlet', purifier: 'Zamanla su üretir', grill: 'Zamanla yemek üretir', spike: 'Saldıran köpekbalığını yaralar' };
+                const selection = document.getElementById('tool-selection');
+                if (selection) selection.innerText = `Seçili: ${names[m]} · ${descriptions[m]}`;
+                if (m !== 'hook') showToolTab('builds');
                 const btn = document.getElementById('action-btn');
                 document.getElementById('action-icon').innerText = m === 'hook' ? '🪝' : '🔨';
                 document.getElementById('action-label').innerText = m === 'hook' ? 'KANCA' : 'KUR';
